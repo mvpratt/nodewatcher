@@ -62,6 +62,7 @@ func main() {
 	sms_from := os.Getenv("TWILIO_PHONE_NUMBER")
 	twilio_account_sid := os.Getenv("TWILIO_ACCOUNT_SID")
 	twilio_auth_token := os.Getenv("TWILIO_AUTH_TOKEN")
+	node_url := os.Getenv("LN_NODE_URL")
 
 	// Note: Twilio credentials must be defined as environment variables for text messaging to work.
 	if sms_enable != "TRUE" {
@@ -81,7 +82,7 @@ func main() {
 	twilio_client := twilio.NewRestClient()
 
 	// request status from the node
-	response, err := call("", "GET")
+	response, err := call(node_url, "GET")
 	if err != nil {
 		print(err)
 	}
@@ -134,5 +135,4 @@ func main() {
 		send_text(twilio_client, text_msg, sms_to, sms_from)
 	}
 	fmt.Println(text_msg)
-	//os.Exit(0)
 }
