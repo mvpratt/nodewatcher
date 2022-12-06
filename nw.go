@@ -37,18 +37,18 @@ func httpNodeRequest(url, method string, macaroon string) (http.Response, error)
 }
 
 // Send a text message
-func sendSMS(twilio_client *twilio.RestClient, msg string, to string, from string) {
+func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string) error {
 	params := &openapi.CreateMessageParams{}
 	params.SetTo(to)
 	params.SetFrom(from)
 	params.SetBody(msg)
 
-	_, err := twilio_client.Api.CreateMessage(params)
+	_, err := twilioClient.Api.CreateMessage(params)
 	if err != nil {
-		fmt.Println(err.Error())
-	} else {
-		fmt.Println("\nSMS sent successfully!")
+		return fmt.Errorf("%s", err.Error())
 	}
+	fmt.Println("\nSMS sent successfully!")
+	return nil
 }
 
 func main() {
@@ -67,33 +67,29 @@ func main() {
 		fmt.Println("\nWARNING: Text messages disabled. " +
 			"Set environment variable SMS_ENABLE to TRUE to enable SMS status updates")
 	} else if smsEnable == "TRUE" && (twilioAccountSid == "" || twilioAuthToken == "") {
-		fmt.Println("\nERROR: Twilio credentials not set. " +
+		log.Fatal("\nERROR: Twilio credentials not set. " +
 			"TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be set as environment variables")
-		return
 	} else if smsTo == "" || smsFrom == "" {
-		fmt.Println("\nERROR: Twilio phone numbers not set. " +
+		log.Fatal("\nERROR: Twilio phone numbers not set. " +
 			"TWILIO_PHONE_NUMBER and TO_PHONE_NUMBER must be set as environment variables")
-		return
 	}
 
 	// Twilio client
 	twilioClient := twilio.NewRestClient()
 
 	// Get lightning node credentials
-	nodeUrl := os.Getenv("LN_NODE_URL")
+	nodeURL := os.Getenv("LN_NODE_URL")
 	macaroon := os.Getenv("MACAROON_HEADER")
-	if nodeUrl == "" {
-		fmt.Println("\nERROR: LN_NODE_URL environment variable must be set.")
-		return
+	if nodeURL == "" {
+		log.Fatal("\nERROR: LN_NODE_URL environment variable must be set.")
 
 	} else if macaroon == "" {
-		fmt.Println("\nERROR: MACAROON_HEADER environment variable must be set.")
-		return
+		log.Fatal("\nERROR: MACAROON_HEADER environment variable must be set.")
 	}
 
 	// Request status from the node
-	nodeUrl += "/v1/getinfo"
-	response, err := httpNodeRequest(nodeUrl, "GET", macaroon)
+	nodeURL += "/v1/getinfo"
+	response, err := httpNodeRequest(nodeURL, "GET", macaroon)
 	if err != nil {
 		print(err)
 	}
@@ -108,18 +104,18 @@ func main() {
 		BestHeaderTimestamp string `json:"best_header_timestamp"`
 	}
 
-	err2 := json.NewDecoder(response.Body).Decode(&data)
-	if err2 != nil {
-		print(err2)
+	errDecoder := json.NewDecoder(response.Body).Decode(&data)
+	if errDecoder != nil {
+		print(errDecoder)
 	}
 
 	// Marshall data into JSON
-	statusJson, err3 := json.MarshalIndent(data, " ", "    ")
-	if err3 != nil {
-		log.Fatalf(err3.Error())
+	statusJSON, err := json.MarshalIndent(data, " ", "    ")
+	if err != nil {
+		log.Fatalf(err.Error())
 	}
 	var statusString string
-	statusString = string(statusJson)
+	statusString = string(statusJSON)
 
 	// Check how long since last block. Convert unix time string into base10, 64-bit int
 	lastBlockTime, _ := strconv.ParseInt(data.BestHeaderTimestamp, 10, 64)
