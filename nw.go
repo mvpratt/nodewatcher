@@ -37,7 +37,7 @@ func httpNodeRequest(url, method string, macaroon string) (http.Response, error)
 }
 
 // Send a text message
-func sendText(twilio_client *twilio.RestClient, msg string, to string, from string) {
+func sendSMS(twilio_client *twilio.RestClient, msg string, to string, from string) {
 	params := &openapi.CreateMessageParams{}
 	params.SetTo(to)
 	params.SetFrom(from)
@@ -55,7 +55,7 @@ func main() {
 
 	fmt.Println("\n Getting node status ...")
 
-	// Get environment variables
+	// Get SMS environment variables
 	smsEnable := os.Getenv("SMS_ENABLE")
 	smsTo := os.Getenv("TO_PHONE_NUMBER")
 	smsFrom := os.Getenv("TWILIO_PHONE_NUMBER")
@@ -92,6 +92,7 @@ func main() {
 	}
 
 	// Request status from the node
+	nodeUrl += "/v1/getinfo"
 	response, err := httpNodeRequest(nodeUrl, "GET", macaroon)
 	if err != nil {
 		print(err)
@@ -143,7 +144,7 @@ func main() {
 
 	// Send SMS with status
 	if smsEnable == "TRUE" {
-		sendText(twilioClient, textMsg, smsTo, smsFrom)
+		sendSMS(twilioClient, textMsg, smsTo, smsFrom)
 	}
 
 	fmt.Println(textMsg)

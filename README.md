@@ -13,6 +13,11 @@ export TWILIO_PHONE_NUMBER=xxxxxxxxx
 export TO_PHONE_NUMBER=xxxxxxxxx
 ```
 
+Example:
+```
+export LN_NODE_URL=https://abcxyz.io:8080
+```
+
 Set SMS_ENABLE to 'FALSE' to disable text message updates
 
 Run once an hour:
@@ -20,6 +25,5 @@ Run once an hour:
 crontab -e
 0 * * * * sh -c "source ~/nodewatcher/nw-env.sh && ~/nodewatcher/nw"
 crontab -l
-tail
 tail /var/spool/mail/ec2-user
 ```
