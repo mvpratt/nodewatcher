@@ -1,11 +1,14 @@
 
+# Nodewatcher
+
+This is a simple script to monitor the status of a Lightning Node and send SMS
+alerts if any issues are detected. Uses Twilio to send texts.
 
 ## Set these environment variables
 
 ```
 export LN_NODE_URL=xxxx
 export MACAROON_HEADER=xxxx
-
 export SMS_ENABLE=TRUE
 export TWILIO_ACCOUNT_SID=xxxxxxxxx
 export TWILIO_AUTH_TOKEN=xxxxxxxxx
