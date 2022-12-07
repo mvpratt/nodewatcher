@@ -102,19 +102,18 @@ func main() {
 	smsEnable := requireEnvVar("SMS_ENABLE")
 
 	var smsTo, smsFrom string
+	var twilioClient *twilio.RestClient
 
 	if smsEnable == "TRUE" {
 		smsTo = requireEnvVar("TO_PHONE_NUMBER")
 		smsFrom = requireEnvVar("TWILIO_PHONE_NUMBER")
 		_ = requireEnvVar("TWILIO_ACCOUNT_SID")
 		_ = requireEnvVar("TWILIO_AUTH_TOKEN")
+		twilioClient = twilio.NewRestClient()
 	} else {
 		fmt.Println("\nWARNING: Text messages disabled. " +
 			"Set environment variable SMS_ENABLE to TRUE to enable SMS status updates")
 	}
-
-	// Twilio client
-	twilioClient := twilio.NewRestClient()
 
 	// Request status from the node
 	response, err := httpNodeRequest(nodeURL+"/v1/getinfo", "GET", macaroon) // todo: retry x times
