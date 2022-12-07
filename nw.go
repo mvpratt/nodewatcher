@@ -96,7 +96,6 @@ func processGetInfoResponse(data GetInfoResponse) string {
 func main() {
 	fmt.Println("\nGetting node status ...")
 
-	// Get environment variables
 	macaroon := requireEnvVar("MACAROON_HEADER")
 	nodeURL := requireEnvVar("LN_NODE_URL")
 	smsEnable := requireEnvVar("SMS_ENABLE")
