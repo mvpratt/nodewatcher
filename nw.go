@@ -10,7 +10,6 @@ import (
 	"time"
 
 	twilio "github.com/twilio/twilio-go"
-
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )
 
@@ -51,58 +50,59 @@ func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string
 	return nil
 }
 
-func main() {
+type GetInfoResponse struct {
+	Alias               string `json:"alias"`
+	IdentityPubkey      string `json:"identity_pubkey"`
+	SyncedToChain       bool   `json:"synced_to_chain"`
+	SyncedToGraph       bool   `json:"synced_to_graph"`
+	BlockHeight         int    `json:"block_height"`
+	BestHeaderTimestamp string `json:"best_header_timestamp"`
+}
 
+func requireEnvVar(varName string) string {
+	env := os.Getenv(varName)
+	if env == "" {
+		log.Fatalf("\nERROR: %s environment variable must be set.", env)
+	}
+	return env
+}
+
+// request status
+// decode response
+// check for errors
+// send sms
+
+func main() {
 	fmt.Println("\n Getting node status ...")
 
-	// Get SMS environment variables
-	smsEnable := os.Getenv("SMS_ENABLE")
-	smsTo := os.Getenv("TO_PHONE_NUMBER")
-	smsFrom := os.Getenv("TWILIO_PHONE_NUMBER")
-	twilioAccountSid := os.Getenv("TWILIO_ACCOUNT_SID")
-	twilioAuthToken := os.Getenv("TWILIO_AUTH_TOKEN")
+	// Get environment variables
+	macaroon := requireEnvVar("MACAROON_HEADER")
+	nodeURL := requireEnvVar("LN_NODE_URL")
+	smsEnable := requireEnvVar("SMS_ENABLE")
 
-	// Note: Twilio credentials must be defined as environment variables for text messaging to work.
-	if smsEnable != "TRUE" {
+	var smsTo, smsFrom string
+
+	if smsEnable == "TRUE" {
+		smsTo = requireEnvVar("TO_PHONE_NUMBER")
+		smsFrom = requireEnvVar("TWILIO_PHONE_NUMBER")
+		_ = requireEnvVar("TWILIO_ACCOUNT_SID")
+		_ = requireEnvVar("TWILIO_AUTH_TOKEN")
+	} else {
 		fmt.Println("\nWARNING: Text messages disabled. " +
 			"Set environment variable SMS_ENABLE to TRUE to enable SMS status updates")
-	} else if smsEnable == "TRUE" && (twilioAccountSid == "" || twilioAuthToken == "") {
-		log.Fatal("\nERROR: Twilio credentials not set. " +
-			"TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be set as environment variables")
-	} else if smsTo == "" || smsFrom == "" {
-		log.Fatal("\nERROR: Twilio phone numbers not set. " +
-			"TWILIO_PHONE_NUMBER and TO_PHONE_NUMBER must be set as environment variables")
 	}
 
 	// Twilio client
 	twilioClient := twilio.NewRestClient()
 
-	// Get lightning node credentials
-	nodeURL := os.Getenv("LN_NODE_URL")
-	macaroon := os.Getenv("MACAROON_HEADER")
-	if nodeURL == "" {
-		log.Fatal("\nERROR: LN_NODE_URL environment variable must be set.")
-
-	} else if macaroon == "" {
-		log.Fatal("\nERROR: MACAROON_HEADER environment variable must be set.")
-	}
-
 	// Request status from the node
-	nodeURL += "/v1/getinfo"
-	response, err := httpNodeRequest(nodeURL, "GET", macaroon)
+	response, err := httpNodeRequest(nodeURL+"/v1/getinfo", "GET", macaroon) // todo: retry x times
 	if err != nil {
-		print(err)
+		log.Fatalf("HTTP error requesting node status: %s", err.Error())
 	}
 	defer response.Body.Close() // note: this will not close until the end of main()
 
-	var data struct {
-		Alias               string `json:"alias"`
-		IdentityPubkey      string `json:"identity_pubkey"`
-		SyncedToChain       bool   `json:"synced_to_chain"`
-		SyncedToGraph       bool   `json:"synced_to_graph"`
-		BlockHeight         int    `json:"block_height"`
-		BestHeaderTimestamp string `json:"best_header_timestamp"`
-	}
+	var data GetInfoResponse
 
 	errDecoder := json.NewDecoder(response.Body).Decode(&data)
 	if errDecoder != nil {
@@ -138,7 +138,6 @@ func main() {
 				"\nLast block received %s minutes ago", data.Alias, timeSinceLastBlock)
 	}
 
-	// Send SMS with status
 	if smsEnable == "TRUE" {
 		sendSMS(twilioClient, textMsg, smsTo, smsFrom)
 	}
