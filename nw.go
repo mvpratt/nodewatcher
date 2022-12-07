@@ -13,6 +13,16 @@ import (
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )
 
+// GetInfoResponse is the expected Lightning node response from /v1/getinfo
+type GetInfoResponse struct {
+	Alias               string `json:"alias"`
+	IdentityPubkey      string `json:"identity_pubkey"`
+	SyncedToChain       bool   `json:"synced_to_chain"`
+	SyncedToGraph       bool   `json:"synced_to_graph"`
+	BlockHeight         int    `json:"block_height"`
+	BestHeaderTimestamp string `json:"best_header_timestamp"`
+}
+
 // HTTP request to lightning node - requires macaroon for authentication
 func httpNodeRequest(url, method string, macaroon string) (http.Response, error) {
 	client := &http.Client{
@@ -50,15 +60,7 @@ func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string
 	return nil
 }
 
-type GetInfoResponse struct {
-	Alias               string `json:"alias"`
-	IdentityPubkey      string `json:"identity_pubkey"`
-	SyncedToChain       bool   `json:"synced_to_chain"`
-	SyncedToGraph       bool   `json:"synced_to_graph"`
-	BlockHeight         int    `json:"block_height"`
-	BestHeaderTimestamp string `json:"best_header_timestamp"`
-}
-
+// Exit if environment variable not defined
 func requireEnvVar(varName string) string {
 	env := os.Getenv(varName)
 	if env == "" {
@@ -67,13 +69,32 @@ func requireEnvVar(varName string) string {
 	return env
 }
 
-// request status
-// decode response
-// check for errors
-// send sms
+func processGetInfoResponse(data GetInfoResponse) string {
+	statusJSON, err := json.MarshalIndent(data, " ", "    ")
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	statusString := string(statusJSON)
+
+	if data.SyncedToChain != true {
+		return fmt.Sprintf("WARNING: Lightning node is not fully synced."+
+			"\nDetails: %s", statusString)
+	}
+	if data.SyncedToGraph != true {
+		return fmt.Sprintf("WARNING: Network graph is not fully synced."+
+			"\nDetails: %s", statusString)
+	}
+
+	// Check how long since last block. Convert unix time string into base10, 64-bit int
+	lastBlockTime, _ := strconv.ParseInt(data.BestHeaderTimestamp, 10, 64)
+	timeSinceLastBlock := time.Now().Sub(time.Unix(lastBlockTime, 0))
+	return fmt.Sprintf(
+		"\n\nGood news, lightning node \"%s\" is fully synced!"+
+			"\nLast block received %s minutes ago", data.Alias, timeSinceLastBlock)
+}
 
 func main() {
-	fmt.Println("\n Getting node status ...")
+	fmt.Println("\nGetting node status ...")
 
 	// Get environment variables
 	macaroon := requireEnvVar("MACAROON_HEADER")
@@ -109,35 +130,7 @@ func main() {
 		print(errDecoder)
 	}
 
-	// Marshall data into JSON
-	statusJSON, err := json.MarshalIndent(data, " ", "    ")
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-	var statusString string
-	statusString = string(statusJSON)
-
-	// Check how long since last block. Convert unix time string into base10, 64-bit int
-	lastBlockTime, _ := strconv.ParseInt(data.BestHeaderTimestamp, 10, 64)
-	t := time.Unix(lastBlockTime, 0)
-	timeSinceLastBlock := time.Now().Sub(t)
-
-	// Contents to be sent via SMS
-	var textMsg string
-
-	// Detect if lightning node is synced
-	if data.SyncedToChain != true {
-		textMsg = fmt.Sprintf("WARNING: Lightning node is not fully synced."+
-			"\nDetails: %s", statusString)
-	} else if data.SyncedToGraph != true {
-		textMsg = fmt.Sprintf("WARNING: Network graph is not fully synced."+
-			"\nDetails: %s", statusString)
-	} else {
-		textMsg = fmt.Sprintf(
-			"\n\nGood news, lightning node \"%s\" is fully synced!"+
-				"\nLast block received %s minutes ago", data.Alias, timeSinceLastBlock)
-	}
-
+	textMsg := processGetInfoResponse(data)
 	if smsEnable == "TRUE" {
 		sendSMS(twilioClient, textMsg, smsTo, smsFrom)
 	}
