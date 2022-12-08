@@ -1,8 +1,12 @@
 
 # Nodewatcher
 
-This is a simple script to monitor the status of a Lightning Node and send SMS
-alerts if any issues are detected. Uses Twilio to send texts.
+This is a simple program to monitor the status of a Lightning Node and send SMS
+alerts if any issues are detected
+
+## Rationale
+
+If lightning node is offline, channel parter could force close channels and steal the money on that channel.  Routing nodes are also monitored for uptime by their peers and payment routing is deprioritized for less reliable nodes.
 
 ## Requirements
 
@@ -10,9 +14,7 @@ Twilio account
 
 ## Environment variables
 
-Set SMS_ENABLE to 'TRUE' to enable text message updates
-
-`env-example.sh`
+Example
 
 ```shell
 #!/bin/sh
@@ -25,19 +27,41 @@ export TWILIO_PHONE_NUMBER=+15556667777
 export TO_PHONE_NUMBER=5554443333
 ```
 
-## Build
+Set your own
+
+```
+cp env-sample.sh env.sh
+(make applicable changes)
+make env
+```
+
+## Build and Run
 
 ```
 make build
+./nw
 ```
 
-## Run
+Sample Output
 
-Cron job to run once an hour
+```
+$ ./nw
+
+Getting node status ...
+
+SMS sent successfully!
+
+Good news, lightning node "bowline" is fully synced!
+Last block received 15m18.211865s minutes ago
+```
+
+## Cron
+
+How to set up a cron job to run once an hour on an AWS EC2 instance
 
 ```
 crontab -e
-0 * * * * sh -c "source ~/nodewatcher/nw-env.sh && ~/nodewatcher/nw"
+0 * * * * sh -c "source ~/nodewatcher/env.sh && ~/nodewatcher/nw"
 crontab -l
 tail /var/spool/mail/ec2-user
 ```
