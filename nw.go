@@ -64,7 +64,7 @@ func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string
 func requireEnvVar(varName string) string {
 	env := os.Getenv(varName)
 	if env == "" {
-		log.Fatalf("\nERROR: %s environment variable must be set.", env)
+		log.Fatalf("\nERROR: %s environment variable must be set.", varName)
 	}
 	return env
 }
@@ -77,11 +77,11 @@ func processGetInfoResponse(data GetInfoResponse) string {
 	statusString := string(statusJSON)
 
 	if data.SyncedToChain != true {
-		return fmt.Sprintf("WARNING: Lightning node is not fully synced."+
+		return fmt.Sprintf("\n\nWARNING: Lightning node is not fully synced."+
 			"\nDetails: %s", statusString)
 	}
 	if data.SyncedToGraph != true {
-		return fmt.Sprintf("WARNING: Network graph is not fully synced."+
+		return fmt.Sprintf("\n\nWARNING: Network graph is not fully synced."+
 			"\nDetails: %s", statusString)
 	}
 
@@ -90,7 +90,7 @@ func processGetInfoResponse(data GetInfoResponse) string {
 	timeSinceLastBlock := time.Now().Sub(time.Unix(lastBlockTime, 0))
 	return fmt.Sprintf(
 		"\n\nGood news, lightning node \"%s\" is fully synced!"+
-			"\nLast block received %s minutes ago", data.Alias, timeSinceLastBlock)
+			"\nLast block received %s ago", data.Alias, timeSinceLastBlock)
 }
 
 func main() {
