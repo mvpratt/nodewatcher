@@ -1,5 +1,5 @@
 ###### Builder image #####
-FROM golang:1.19.2-alpine
+FROM golang:1.19.2-alpine as builder
 
 # Install build dependencies
 RUN apk add --no-cache git make bash vim
@@ -10,4 +10,9 @@ WORKDIR /home
 RUN git clone https://github.com/mvpratt/nodewatcher.git nodewatcher
 RUN cd nodewatcher && make
 
-CMD ["/home/nodewatcher/nw"]
+
+###### Final image optimized for size
+FROM alpine as final
+RUN apk add --no-cache bash vim
+COPY --from=builder /home/nodewatcher/nw /bin/
+CMD ["/bin/nw"]
