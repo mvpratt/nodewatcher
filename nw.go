@@ -13,6 +13,9 @@ import (
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )
 
+// const STATUS_POLL_INTERVAL = 1
+// const STATUS_NOTIFY_TIME = 1
+
 // GetInfoResponse is the expected Lightning node response from /v1/getinfo
 type GetInfoResponse struct {
 	Alias               string `json:"alias"`

@@ -16,7 +16,7 @@ Twilio account
 
 Example
 
-```shell
+```bash
 #!/bin/sh
 export LN_NODE_URL=https://abcxyz.io:8080
 export MACAROON_HEADER=ABCD01234567
@@ -29,7 +29,7 @@ export TO_PHONE_NUMBER=5554443333
 
 Set your own
 
-```
+```bash
 cp env-sample.sh env.sh
 (make applicable changes)
 make env
@@ -37,7 +37,7 @@ make env
 
 ## Build and Run
 
-```
+```bash
 make build
 ./nw
 ```
@@ -64,4 +64,10 @@ crontab -e
 0 * * * * sh -c "source ~/nodewatcher/env.sh && ~/nodewatcher/nw"
 crontab -l
 tail /var/spool/mail/ec2-user
+```
+
+## Deploy
+
+```bash
+make deploy
 ```
