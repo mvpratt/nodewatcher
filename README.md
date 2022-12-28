@@ -25,6 +25,7 @@ export TWILIO_ACCOUNT_SID=ABCD
 export TWILIO_AUTH_TOKEN=BEEF42
 export TWILIO_PHONE_NUMBER=+15556667777
 export TO_PHONE_NUMBER=5554443333
+export DOCKER_REPO=11111111.dkr.ecr.us-east-1.amazonaws.com/nodewatcher
 ```
 
 Set your own
@@ -35,18 +36,16 @@ cp env-sample.sh env.sh
 make env
 ```
 
-## Build and Run
+## Build and Run locally
 
 ```bash
 make build
-./nw
+make run
 ```
 
 Sample Output
 
 ```
-$ ./nw
-
 Getting node status ...
 
 SMS sent successfully!
@@ -55,18 +54,7 @@ Good news, lightning node "bowline" is fully synced!
 Last block received 15m18.211865s minutes ago
 ```
 
-## Cron
-
-How to set up a cron job to run once an hour on an AWS EC2 instance
-
-```
-crontab -e
-0 * * * * sh -c "source ~/nodewatcher/env.sh && ~/nodewatcher/nw"
-crontab -l
-tail /var/spool/mail/ec2-user
-```
-
-## Deploy
+## Build docker image and deploy to AWS
 
 ```bash
 make deploy
