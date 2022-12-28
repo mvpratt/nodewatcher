@@ -44,6 +44,6 @@ docker-run:
 	docker run nodewatcher
 
 .PHONY:deploy
-deploy:
+deploy: docker-build-aws
 	docker tag nodewatcher:latest ${DOCKER_REPO}:latest
 	docker push ${DOCKER_REPO}:latest
