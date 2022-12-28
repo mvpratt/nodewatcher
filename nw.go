@@ -89,7 +89,7 @@ func processGetInfoResponse(data GetInfoResponse) string {
 	lastBlockTime, _ := strconv.ParseInt(data.BestHeaderTimestamp, 10, 64)
 	timeSinceLastBlock := time.Now().Sub(time.Unix(lastBlockTime, 0))
 	return fmt.Sprintf(
-		"\n\nGood news, lightning node \"%s\" is fully synced!"+
+		"\nGood news, lightning node \"%s\" is fully synced!"+
 			"\nLast block received %s ago", data.Alias, timeSinceLastBlock)
 }
 
