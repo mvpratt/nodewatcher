@@ -13,9 +13,6 @@ import (
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )
 
-// const STATUS_POLL_INTERVAL = 1
-// const STATUS_NOTIFY_TIME = 1
-
 // GetInfoResponse is the expected Lightning node response from /v1/getinfo
 type GetInfoResponse struct {
 	Alias               string `json:"alias"`
@@ -96,8 +93,11 @@ func processGetInfoResponse(data GetInfoResponse) string {
 			"\nLast block received %s ago", data.Alias, timeSinceLastBlock)
 }
 
+// Check status of lightning node every day at 1 am UTC. If SMS_ENABLE is true,
+// send a text with status to the specified number
 func main() {
-	fmt.Println("\nGetting node status ...")
+	const statusPollInterval = 30 // 30 * 60 seconds = 30 minutes
+	const statusNotifyTime = 43   // when clock minutes = 0 (every hour on the hour)
 
 	macaroon := requireEnvVar("MACAROON_HEADER")
 	nodeURL := requireEnvVar("LN_NODE_URL")
@@ -117,24 +117,40 @@ func main() {
 			"Set environment variable SMS_ENABLE to TRUE to enable SMS status updates")
 	}
 
-	// Request status from the node
-	response, err := httpNodeRequest(nodeURL+"/v1/getinfo", "GET", macaroon) // todo: retry x times
-	if err != nil {
-		log.Fatalf("HTTP error requesting node status: %s", err.Error())
+	smsAlreadySent := false
+	for true {
+		// Request status from the node
+		fmt.Println("\nGetting node status ...")
+
+		response, err := httpNodeRequest(nodeURL+"/v1/getinfo", "GET", macaroon) // todo: retry x times
+		if err != nil {
+			log.Fatalf("HTTP error requesting node status: %s", err.Error())
+		}
+		defer response.Body.Close() // note: this will not close until the end of main()
+
+		var data GetInfoResponse
+
+		errDecoder := json.NewDecoder(response.Body).Decode(&data)
+		if errDecoder != nil {
+			print(errDecoder)
+		}
+
+		textMsg := processGetInfoResponse(data)
+
+		// check to see if desired time
+		isTimeToSendStatus := (time.Now().Minute() == statusNotifyTime)
+
+		if smsEnable == "TRUE" && isTimeToSendStatus == true && smsAlreadySent == false {
+			sendSMS(twilioClient, textMsg, smsTo, smsFrom)
+			smsAlreadySent = true
+		}
+
+		// if time to send status window has passed, reset the smsAlreadySent boolean
+		if isTimeToSendStatus == false && smsAlreadySent == true {
+			smsAlreadySent = false
+		}
+
+		fmt.Println(textMsg)
+		time.Sleep(statusPollInterval * time.Second)
 	}
-	defer response.Body.Close() // note: this will not close until the end of main()
-
-	var data GetInfoResponse
-
-	errDecoder := json.NewDecoder(response.Body).Decode(&data)
-	if errDecoder != nil {
-		print(errDecoder)
-	}
-
-	textMsg := processGetInfoResponse(data)
-	if smsEnable == "TRUE" {
-		sendSMS(twilioClient, textMsg, smsTo, smsFrom)
-	}
-
-	fmt.Println(textMsg)
 }
