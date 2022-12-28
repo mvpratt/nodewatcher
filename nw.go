@@ -93,11 +93,10 @@ func processGetInfoResponse(data GetInfoResponse) string {
 			"\nLast block received %s ago", data.Alias, timeSinceLastBlock)
 }
 
-// Check status of lightning node every day at 1 am UTC. If SMS_ENABLE is true,
-// send a text with status to the specified number
+// Once an hour, send a text message with lightning node status if SMS_ENABLE is true,
 func main() {
-	const statusPollInterval = 30 // 30 * 60 seconds = 30 minutes
-	const statusNotifyTime = 43   // when clock minutes = 0 (every hour on the hour)
+	const statusPollInterval = 30 // 30 seconds
+	const statusNotifyTime = 0    // when clock minutes = 0 (every hour on the hour)
 
 	macaroon := requireEnvVar("MACAROON_HEADER")
 	nodeURL := requireEnvVar("LN_NODE_URL")
