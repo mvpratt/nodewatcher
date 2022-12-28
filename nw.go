@@ -93,10 +93,10 @@ func processGetInfoResponse(data GetInfoResponse) string {
 			"\nLast block received %s ago", data.Alias, timeSinceLastBlock)
 }
 
-// Once an hour, send a text message with lightning node status if SMS_ENABLE is true,
+// Once a day, send a text message with lightning node status if SMS_ENABLE is true,
 func main() {
-	const statusPollInterval = 30 // 30 seconds
-	const statusNotifyTime = 0    // when clock minutes = 0 (every hour on the hour)
+	const statusPollInterval = 60 // 1 minute
+	const statusNotifyTime = 1    // when time = 01:00 UTC
 
 	macaroon := requireEnvVar("MACAROON_HEADER")
 	nodeURL := requireEnvVar("LN_NODE_URL")
@@ -137,7 +137,7 @@ func main() {
 		textMsg := processGetInfoResponse(data)
 
 		// check to see if desired time
-		isTimeToSendStatus := (time.Now().Minute() == statusNotifyTime)
+		isTimeToSendStatus := (time.Now().Hour() == statusNotifyTime)
 
 		if smsEnable == "TRUE" && isTimeToSendStatus == true && smsAlreadySent == false {
 			sendSMS(twilioClient, textMsg, smsTo, smsFrom)
