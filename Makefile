@@ -2,7 +2,7 @@
 
 .PHONY:env
 env:
-	source env.sh
+	./env.sh
 
 .PHONY:lint
 lint:
@@ -17,7 +17,7 @@ run:
 	./nw
 
 .PHONY:docker-build
-docker-build: build
+docker-build: lint
 	docker build --no-cache . -t nodewatcher \
 	--build-arg SMS_ENABLE=${SMS_ENABLE} \
 	--build-arg LN_NODE_URL=${LN_NODE_URL} \
@@ -28,7 +28,7 @@ docker-build: build
 	--build-arg TO_PHONE_NUMBER=${TO_PHONE_NUMBER}
 
 .PHONY:docker-build-aws
-docker-build-aws: build
+docker-build-aws: lint
 	docker build --no-cache . -t nodewatcher \
 	--build-arg SMS_ENABLE=${SMS_ENABLE} \
 	--build-arg LN_NODE_URL=${LN_NODE_URL} \
