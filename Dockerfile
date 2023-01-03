@@ -1,17 +1,22 @@
-###### Builder image #####
+###### Builder image ######
 FROM golang:1.19.2-alpine as builder
 
-# Install build dependencies
-RUN apk add --no-cache git make bash vim
+# Devtools
+RUN apk add --no-cache make bash vim
+
+# Install dependencies
 RUN go install golang.org/x/lint/golint@latest
 
-# Nodewatchter
-WORKDIR /home
-RUN git clone https://github.com/mvpratt/nodewatcher.git nodewatcher
-RUN cd nodewatcher && make
+# Build from source
+RUN mkdir /home/nodewatcher
+WORKDIR /home/nodewatcher
+COPY Makefile .
+COPY go.mod .
+COPY go.sum .
+COPY nw.go .
+RUN make
 
-
-###### Final image optimized for size
+###### Final image optimized for size ######
 FROM alpine as final
 
 ARG SMS_ENABLE
