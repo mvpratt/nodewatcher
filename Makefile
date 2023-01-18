@@ -1,9 +1,5 @@
 .DEFAULT_GOAL := build
 
-.PHONY:env
-env:
-	./env.sh
-
 .PHONY:lint
 lint:
 	golint ./...
