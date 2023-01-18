@@ -1,7 +1,5 @@
 package main
 
-// todo - detect new version available
-
 import (
 	"context"
 	"encoding/json"
@@ -47,7 +45,6 @@ func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
 	}
 	statusString := string(statusJSON)
 
-	// todo - test this
 	if info.SyncedToChain != true {
 		return fmt.Sprintf("\n\nWARNING: Lightning node is not fully synced."+
 			"\nDetails: %s", statusString)
@@ -70,8 +67,6 @@ func main() {
 	const statusPollInterval = 60 // 1 minute
 	const statusNotifyTime = 1    // when time = 01:00 UTC
 
-	//macaroon := requireEnvVar("MACAROON_HEADER")
-	nodeURL := requireEnvVar("LN_NODE_URL")
 	smsEnable := requireEnvVar("SMS_ENABLE")
 
 	var smsTo, smsFrom string
@@ -89,25 +84,25 @@ func main() {
 	}
 
 	var (
-		options = lndclient.Insecure() // todo - no tls
-		lnHost  = nodeURL
-		tlsPath = "/Users/mike/projects/bitcoin/mvpratt/voltage-creds"
-		macDir  = "/Users/mike/projects/bitcoin/mvpratt/voltage-creds"
+		lnHost        = requireEnvVar("LN_NODE_URL")
+		tlsPath       = ""
+		macDir        = ""
+		network       = "mainnet"
+		tlsOption     = lndclient.Insecure()
+		macDataOption = lndclient.MacaroonData(requireEnvVar("MACAROON_HEADER"))
 	)
 
 	client, err := lndclient.NewBasicClient(
 		lnHost,
 		tlsPath,
 		macDir,
-		"regtest",
-		options,
+		network,
+		tlsOption,
+		macDataOption,
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
 
 	smsAlreadySent := false
 
@@ -115,12 +110,13 @@ func main() {
 		// Request status from the node
 		fmt.Println("\nGetting node status ...")
 
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
 		info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		fmt.Printf("\nNode info: %s\n", info)
 
 		textMsg := processGetInfoResponse(info)
 
