@@ -18,7 +18,7 @@ run:
 
 .PHONY:docker-build
 docker-build: lint
-	docker build --no-cache . -t nodewatcher \
+	docker build . -t nodewatcher \
 	--build-arg SMS_ENABLE=${SMS_ENABLE} \
 	--build-arg LN_NODE_URL=${LN_NODE_URL} \
 	--build-arg MACAROON_HEADER=${MACAROON_HEADER} \
@@ -29,7 +29,7 @@ docker-build: lint
 
 .PHONY:docker-build-aws
 docker-build-aws: lint
-	docker build --no-cache . -t nodewatcher \
+	docker build . -t nodewatcher \
 	--build-arg SMS_ENABLE=${SMS_ENABLE} \
 	--build-arg LN_NODE_URL=${LN_NODE_URL} \
 	--build-arg MACAROON_HEADER=${MACAROON_HEADER} \
@@ -41,7 +41,11 @@ docker-build-aws: lint
 
 .PHONY:docker-run
 docker-run:
-	docker run nodewatcher
+	docker run --rm nodewatcher nodewatcher
+
+.PHONE:docker-exec
+docker-exec:
+	docker exec -it nodewatcher bash
 
 .PHONY:deploy
 deploy: docker-build-aws

@@ -2,7 +2,7 @@
 FROM golang:1.19.2-alpine as builder
 
 # Devtools
-RUN apk add --no-cache make bash vim
+RUN apk add --no-cache make bash vim jq
 
 # Install dependencies
 RUN go install golang.org/x/lint/golint@latest
@@ -14,10 +14,12 @@ COPY Makefile .
 COPY go.mod .
 COPY go.sum .
 COPY nw.go .
-RUN make
+RUN make build
 
 ###### Final image optimized for size ######
 FROM alpine as final
+
+RUN apk add --no-cache bash vim
 
 ARG SMS_ENABLE
 ARG LN_NODE_URL
@@ -35,7 +37,5 @@ ENV TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
 ENV TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
 ENV TO_PHONE_NUMBER=${TO_PHONE_NUMBER}
 
-RUN apk add --no-cache bash vim
 COPY --from=builder /home/nodewatcher/nw /bin/
-
 CMD ["/bin/nw"]
