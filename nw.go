@@ -1,49 +1,18 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"strconv"
 	"time"
 
+	"github.com/lightninglabs/lndclient"
+	"github.com/lightningnetwork/lnd/lnrpc"
 	twilio "github.com/twilio/twilio-go"
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )
-
-// GetInfoResponse is the expected Lightning node response from /v1/getinfo
-type GetInfoResponse struct {
-	Alias               string `json:"alias"`
-	IdentityPubkey      string `json:"identity_pubkey"`
-	SyncedToChain       bool   `json:"synced_to_chain"`
-	SyncedToGraph       bool   `json:"synced_to_graph"`
-	BlockHeight         int    `json:"block_height"`
-	BestHeaderTimestamp string `json:"best_header_timestamp"`
-}
-
-// HTTP request to lightning node - requires macaroon for authentication
-func httpNodeRequest(url, method string, macaroon string) (http.Response, error) {
-	client := &http.Client{
-		Timeout: time.Second * 10,
-	}
-	req, err := http.NewRequest(method, url, nil)
-	if err != nil {
-		return *req.Response, fmt.Errorf("Got error %s", err.Error())
-	}
-
-	// Set credentials to access lightning node
-	req.Header.Set("grpc-metadata-macaroon", macaroon)
-	req.Header.Set("user-agent", "nodewatcher")
-
-	response, err := client.Do(req)
-	if err != nil {
-		return *req.Response, fmt.Errorf("Got error %s", err.Error())
-	}
-
-	return *response, nil
-}
 
 // Send a text message
 func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string) error {
@@ -69,28 +38,28 @@ func requireEnvVar(varName string) string {
 	return env
 }
 
-func processGetInfoResponse(data GetInfoResponse) string {
-	statusJSON, err := json.MarshalIndent(data, " ", "    ")
+func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
+	statusJSON, err := json.MarshalIndent(info, " ", "    ")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 	statusString := string(statusJSON)
 
-	if data.SyncedToChain != true {
+	if info.SyncedToChain != true {
 		return fmt.Sprintf("\n\nWARNING: Lightning node is not fully synced."+
 			"\nDetails: %s", statusString)
 	}
-	if data.SyncedToGraph != true {
+	if info.SyncedToGraph != true {
 		return fmt.Sprintf("\n\nWARNING: Network graph is not fully synced."+
 			"\nDetails: %s", statusString)
 	}
 
 	// Check how long since last block. Convert unix time string into base10, 64-bit int
-	lastBlockTime, _ := strconv.ParseInt(data.BestHeaderTimestamp, 10, 64)
+	lastBlockTime := info.BestHeaderTimestamp
 	timeSinceLastBlock := time.Now().Sub(time.Unix(lastBlockTime, 0))
 	return fmt.Sprintf(
 		"\nGood news, lightning node \"%s\" is fully synced!"+
-			"\nLast block received %s ago", data.Alias, timeSinceLastBlock)
+			"\nLast block received %s ago", info.Alias, timeSinceLastBlock)
 }
 
 // Once a day, send a text message with lightning node status if SMS_ENABLE is true,
@@ -98,8 +67,6 @@ func main() {
 	const statusPollInterval = 60 // 1 minute
 	const statusNotifyTime = 1    // when time = 01:00 UTC
 
-	macaroon := requireEnvVar("MACAROON_HEADER")
-	nodeURL := requireEnvVar("LN_NODE_URL")
 	smsEnable := requireEnvVar("SMS_ENABLE")
 
 	var smsTo, smsFrom string
@@ -116,25 +83,42 @@ func main() {
 			"Set environment variable SMS_ENABLE to TRUE to enable SMS status updates")
 	}
 
+	var (
+		lnHost        = requireEnvVar("LN_NODE_URL")
+		tlsPath       = ""
+		macDir        = ""
+		network       = "mainnet"
+		tlsOption     = lndclient.Insecure()
+		macDataOption = lndclient.MacaroonData(requireEnvVar("MACAROON_HEADER"))
+	)
+
+	client, err := lndclient.NewBasicClient(
+		lnHost,
+		tlsPath,
+		macDir,
+		network,
+		tlsOption,
+		macDataOption,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	smsAlreadySent := false
+
 	for true {
 		// Request status from the node
 		fmt.Println("\nGetting node status ...")
 
-		response, err := httpNodeRequest(nodeURL+"/v1/getinfo", "GET", macaroon) // todo: retry x times
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 		if err != nil {
-			log.Fatalf("HTTP error requesting node status: %s", err.Error())
-		}
-		defer response.Body.Close() // note: this will not close until the end of main()
-
-		var data GetInfoResponse
-
-		errDecoder := json.NewDecoder(response.Body).Decode(&data)
-		if errDecoder != nil {
-			print(errDecoder)
+			log.Fatal(err)
 		}
 
-		textMsg := processGetInfoResponse(data)
+		textMsg := processGetInfoResponse(info)
 
 		// check to see if desired time
 		isTimeToSendStatus := (time.Now().Hour() == statusNotifyTime)

@@ -14,6 +14,7 @@ COPY Makefile .
 COPY go.mod .
 COPY go.sum .
 COPY nw.go .
+RUN go install -v
 RUN make build
 
 ###### Final image optimized for size ######

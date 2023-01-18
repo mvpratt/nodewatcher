@@ -1,5 +1,5 @@
 #!/bin/sh
-export LN_NODE_URL=https://abcxyz.io:8080
+export LN_NODE_URL=abcxyz.io:10009
 export MACAROON_HEADER=ABCD01234567
 export SMS_ENABLE=TRUE
 export TWILIO_ACCOUNT_SID=ABCD
