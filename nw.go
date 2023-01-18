@@ -1,5 +1,7 @@
 package main
 
+// todo - detect new version available
+
 import (
 	"context"
 	"encoding/json"
@@ -56,7 +58,7 @@ func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
 	}
 
 	// Check how long since last block. Convert unix time string into base10, 64-bit int
-	lastBlockTime := info.BestHeaderTimestamp //strconv.ParseInt(info.BestHeaderTimestamp, 10, 64)
+	lastBlockTime := info.BestHeaderTimestamp
 	timeSinceLastBlock := time.Now().Sub(time.Unix(lastBlockTime, 0))
 	return fmt.Sprintf(
 		"\nGood news, lightning node \"%s\" is fully synced!"+
@@ -118,7 +120,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		fmt.Printf("Node info: %s", info)
+		fmt.Printf("\nNode info: %s\n", info)
 
 		textMsg := processGetInfoResponse(info)
 
