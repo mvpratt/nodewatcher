@@ -37,13 +37,13 @@ docker-build-aws: lint
 
 .PHONY:docker-run
 docker-run:
-	docker run --rm nodewatcher nodewatcher
+	docker run --rm nodewatcher
 
 .PHONE:docker-exec
 docker-exec:
 	docker exec -it nodewatcher bash
 
 .PHONY:deploy
-deploy: docker-build-aws
+deploy:
 	docker tag nodewatcher:latest ${DOCKER_REPO}:latest
 	docker push ${DOCKER_REPO}:latest
