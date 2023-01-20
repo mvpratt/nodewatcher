@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/lightninglabs/lndclient"
@@ -26,7 +28,7 @@ type Node struct {
 	bun.BaseModel `bun:"table:nodes"`
 
 	ID       int32  `bun:"id,pk,autoincrement"`
-	URL      string `bun:"url"` //,unique"`
+	URL      string `bun:"url,unique"`
 	Alias    string `bun:"alias"`
 	Pubkey   string `bun:"pubkey"`
 	Macaroon string `bund:"macaroon"`
@@ -38,8 +40,8 @@ type Channel struct {
 
 	ID          int32  `bun:"id,pk,autoincrement"`
 	FundingTxid string `bun:"funding_txid"`
-	OutputIndex int32  `bun:"output_index"`
-	//NodeID      *Node  `bun:"rel:has-one",join:node_id=id`
+	OutputIndex int64  `bun:"output_index"`
+	NodeID      *Node  `bun:"rel:has-one",join:node_id=id`
 }
 
 // ChannelBackup is a Lightning Channel
@@ -168,8 +170,9 @@ func main() {
 	// insert node in the db
 	res, err := db.NewInsert().
 		Model(node).
-		//On("conflict (\"url\") do nothing").
+		On("conflict (\"url\") do nothing").
 		Exec(dbctx)
+
 	checkError(err)
 	fmt.Println(res)
 
@@ -227,18 +230,26 @@ func main() {
 		}
 
 		for _, channel := range channels.Channels {
+			splits := strings.Split(channel.ChannelPoint, ":")
+
+			txid := splits[0]
+			output, err := strconv.ParseInt(splits[1], 10, 32)
 			mychan := &Channel{
 				ID:          0,
-				FundingTxid: channel.ChannelPoint,
-				OutputIndex: 42,
+				FundingTxid: txid,
+				OutputIndex: output,
 			}
 
-			res, err := db.NewInsert().Model(mychan).Returning("*").Exec(dbctx)
+			res, err := db.NewInsert().
+				Model(mychan).
+				On("conflict (\"funding_txid\",\"output_index\") do nothing").
+				Exec(dbctx)
 			checkError(err)
 			fmt.Println(res)
 		}
 
 		// static channel backup
+		// todo - readable string
 		chanBackups, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
 		if err != nil {
 			log.Fatal(err)
@@ -251,7 +262,11 @@ func main() {
 				ChannelID: 43,
 			}
 
-			res, err := db.NewInsert().Model(channelBackup).Returning("*").Exec(dbctx)
+			res, err := db.NewInsert().
+				Model(channelBackup).
+				//On("conflict (\"url\") do nothing").
+				Returning("*").
+				Exec(dbctx)
 			checkError(err)
 			fmt.Println(res)
 		}
