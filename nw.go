@@ -220,18 +220,6 @@ func main() {
 
 		fmt.Println(textMsg)
 
-		// // getnetworkinfo
-		// networkInfo, err := client.GetNetworkInfo(ctx, &lnrpc.NetworkInfoRequest{})
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		// networkJSON, err := json.MarshalIndent(networkInfo, " ", "    ")
-		// if err != nil {
-		// 	log.Fatalf(err.Error())
-		// }
-		// fmt.Println(string(networkJSON))
-
 		//get channels
 		channels, err := client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
 		if err != nil {
@@ -250,37 +238,23 @@ func main() {
 			fmt.Println(res)
 		}
 
-		// print all channels, or just check to see if insert worked
-		// err = db.NewSelect().
-		// 	Model(&channel).
-		// 	Where("? = ?", bun.Ident("url"), "").
-		// 	Scan(dbctx)
-		// checkError(err)
-		// fmt.Println(node)
-
-		// channelsJSON, err := json.MarshalIndent(channels, " ", "    ")
-		// if err != nil {
-		// 	log.Fatalf(err.Error())
-		// }
-		// fmt.Println(string(channelsJSON))
-
 		// static channel backup
-		// chanBackups, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		chanBackups, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
+		if err != nil {
+			log.Fatal(err)
+		}
 
-		// for _, item := range chanBackups.SingleChanBackups.ChannelBackups.ChanBackups {
-		// 	channelBackup := &ChannelBackup{
-		// 		ID:        0,
-		// 		Backup:    string(item.ChanBackup),
-		// 		ChannelID: 43,
-		// 	}
+		for _, item := range chanBackups.SingleChanBackups.ChanBackups {
+			channelBackup := &ChannelBackup{
+				ID:        0,
+				Backup:    string(item.ChanBackup),
+				ChannelID: 43,
+			}
 
-		// 	res, err := db.NewInsert().Model(channelBackup).Returning("*").Exec(dbctx)
-		// 	checkError(err)
-		// 	fmt.Println(res)
-		// }
+			res, err := db.NewInsert().Model(channelBackup).Returning("*").Exec(dbctx)
+			checkError(err)
+			fmt.Println(res)
+		}
 
 		time.Sleep(statusPollInterval * time.Second)
 	}
