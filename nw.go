@@ -1,7 +1,10 @@
 package main
 
+// todo - switch to readonly macaroon
+
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,6 +15,10 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc"
 	twilio "github.com/twilio/twilio-go"
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
+	"github.com/uptrace/bun/driver/pgdriver"
+	"github.com/uptrace/bun/extra/bundebug"
 )
 
 // Send a text message
@@ -44,6 +51,7 @@ func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
 		log.Fatalf(err.Error())
 	}
 	statusString := string(statusJSON)
+	//fmt.Println(string(statusJSON))
 
 	if info.SyncedToChain != true {
 		return fmt.Sprintf("\n\nWARNING: Lightning node is not fully synced."+
@@ -62,12 +70,19 @@ func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
 			"\nLast block received %s ago", info.Alias, timeSinceLastBlock)
 }
 
+func checkError(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 // Once a day, send a text message with lightning node status if SMS_ENABLE is true,
 func main() {
 	const statusPollInterval = 60 // 1 minute
 	const statusNotifyTime = 1    // when time = 01:00 UTC
 
 	smsEnable := requireEnvVar("SMS_ENABLE")
+	macaroon := requireEnvVar("MACAROON_HEADER")
 
 	var smsTo, smsFrom string
 	var twilioClient *twilio.RestClient
@@ -89,9 +104,57 @@ func main() {
 		macDir        = ""
 		network       = "mainnet"
 		tlsOption     = lndclient.Insecure()
-		macDataOption = lndclient.MacaroonData(requireEnvVar("MACAROON_HEADER"))
+		macDataOption = lndclient.MacaroonData(macaroon)
 	)
 
+	// connect to the database
+	const (
+		host     = "localhost"
+		port     = 5433
+		user     = "user"
+		password = "password"
+		dbname   = "depot"
+	)
+	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", user, password, host, port, dbname)
+	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
+	db := bun.NewDB(sqldb, pgdialect.New())
+
+	db.AddQueryHook(bundebug.NewQueryHook(
+		bundebug.WithVerbose(true),
+		bundebug.FromEnv("BUNDEBUG"),
+	))
+
+	type Node struct {
+		bun.BaseModel `bun:"table:nodes,alias:n"`
+
+		ID       int32  `bun:"id,pk,autoincrement"`
+		URL      string `bun:"url"`
+		Alias    string `bun:"alias"`
+		Pubkey   string `bun:"pubkey"`
+		Macaroon string `bund:"macaroon"`
+	}
+
+	type Channel struct {
+		bun.BaseModel `bun:"table:channels,alias:c"`
+
+		ID          int32  `bun:"id,pk,autoincrement"`
+		FundingTxid string `bun:"funding_txid"`
+		OutputIndex string `bun:"output_index"`
+		NodeID      string `bun:"node_id"` // foreighkey
+	}
+
+	var node Node
+	err := db.NewSelect().
+		Model(&node).
+		ColumnExpr("url").
+		Where("? = ?", bun.Ident("id"), "1").
+		Scan(dbctx)
+	checkError(err)
+
+	fmt.Println(node)
 	client, err := lndclient.NewBasicClient(
 		lnHost,
 		tlsPath,
@@ -134,6 +197,43 @@ func main() {
 		}
 
 		fmt.Println(textMsg)
+
+		// // getnetworkinfo
+		// networkInfo, err := client.GetNetworkInfo(ctx, &lnrpc.NetworkInfoRequest{})
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+
+		// networkJSON, err := json.MarshalIndent(networkInfo, " ", "    ")
+		// if err != nil {
+		// 	log.Fatalf(err.Error())
+		// }
+		// fmt.Println(string(networkJSON))
+
+		//get channels
+		// channels, err := client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// //chan1 := channels.Channels[0]
+
+		// channelsJSON, err := json.MarshalIndent(channels, " ", "    ")
+		// if err != nil {
+		// 	log.Fatalf(err.Error())
+		// }
+		// fmt.Println(string(channelsJSON))
+
+		// static channel backup
+		chanBackup, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
+		if err != nil {
+			log.Fatal(err)
+		}
+		chanBackupJSON, err := json.MarshalIndent(chanBackup, " ", "    ")
+		if err != nil {
+			log.Fatalf(err.Error())
+		}
+		fmt.Println(string(chanBackupJSON))
+
 		time.Sleep(statusPollInterval * time.Second)
 	}
 }
