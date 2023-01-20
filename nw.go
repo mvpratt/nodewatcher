@@ -21,6 +21,36 @@ import (
 	"github.com/uptrace/bun/extra/bundebug"
 )
 
+// Node is a Lightning Node
+type Node struct {
+	bun.BaseModel `bun:"table:nodes"`
+
+	ID       int32  `bun:"id,pk,autoincrement"`
+	URL      string `bun:"url"` //,unique"`
+	Alias    string `bun:"alias"`
+	Pubkey   string `bun:"pubkey"`
+	Macaroon string `bund:"macaroon"`
+}
+
+// Channel is a Lightning Channel
+type Channel struct {
+	bun.BaseModel `bun:"table:channels"`
+
+	ID          int32  `bun:"id,pk,autoincrement"`
+	FundingTxid string `bun:"funding_txid"`
+	OutputIndex int32  `bun:"output_index"`
+	//NodeID      *Node  `bun:"rel:has-one",join:node_id=id`
+}
+
+// ChannelBackup is a Lightning Channel
+type ChannelBackup struct {
+	bun.BaseModel `bun:"table:channel_backups"`
+
+	ID        int32  `bun:"id,pk,autoincrement"`
+	Backup    string `bun:"backup"`
+	ChannelID int32  `bun:"channel_id"`
+}
+
 // Send a text message
 func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string) error {
 	params := &openapi.CreateMessageParams{}
@@ -127,43 +157,21 @@ func main() {
 		bundebug.FromEnv("BUNDEBUG"),
 	))
 
-	type Node struct {
-		bun.BaseModel `bun:"table:nodes,alias:n"`
-
-		ID       int32  `bun:"id,pk,autoincrement"`
-		URL      string `bun:"url,unique"`
-		Alias    string `bun:"alias"`
-		Pubkey   string `bun:"pubkey"`
-		Macaroon string `bund:"macaroon"`
+	node := &Node{
+		ID:       0,
+		URL:      lnHost,
+		Alias:    "",
+		Pubkey:   "",
+		Macaroon: macaroon,
 	}
-
-	type Channel struct {
-		bun.BaseModel `bun:"table:channels,alias:c"`
-
-		ID          int32  `bun:"id,pk,autoincrement"`
-		FundingTxid string `bun:"funding_txid"`
-		OutputIndex string `bun:"output_index"`
-		NodeID      string `bun:"node_id"` // foreighkey
-	}
-
-	var node Node
 
 	// insert node in the db
-	_, err := db.NewInsert().
-		Model(&node).
-		Table("nodes").
-		Column("url", "alias", "pubkey", "macaroon").
-		Value(lnHost, "", "", "").
-		On("conflict (\"url\") do nothing").
+	res, err := db.NewInsert().
+		Model(node).
+		//On("conflict (\"url\") do nothing").
 		Exec(dbctx)
-
-	err = db.NewSelect().
-		Model(&node).
-		ColumnExpr("url").
-		Where("? = ?", bun.Ident("id"), "1").
-		Scan(dbctx)
 	checkError(err)
-	fmt.Println(node)
+	fmt.Println(res)
 
 	// connect to node via grpc
 	client, err := lndclient.NewBasicClient(
@@ -185,6 +193,9 @@ func main() {
 		fmt.Println("\nGetting node status ...")
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		dbctx, cancel := context.WithTimeout(context.Background(), time.Second) // note - new context
 		defer cancel()
 
 		info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
@@ -222,11 +233,30 @@ func main() {
 		// fmt.Println(string(networkJSON))
 
 		//get channels
-		// channels, err := client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// //chan1 := channels.Channels[0]
+		channels, err := client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for _, channel := range channels.Channels {
+			mychan := &Channel{
+				ID:          0,
+				FundingTxid: channel.ChannelPoint,
+				OutputIndex: 42,
+			}
+
+			res, err := db.NewInsert().Model(mychan).Returning("*").Exec(dbctx)
+			checkError(err)
+			fmt.Println(res)
+		}
+
+		// print all channels, or just check to see if insert worked
+		// err = db.NewSelect().
+		// 	Model(&channel).
+		// 	Where("? = ?", bun.Ident("url"), "").
+		// 	Scan(dbctx)
+		// checkError(err)
+		// fmt.Println(node)
 
 		// channelsJSON, err := json.MarshalIndent(channels, " ", "    ")
 		// if err != nil {
@@ -235,15 +265,22 @@ func main() {
 		// fmt.Println(string(channelsJSON))
 
 		// static channel backup
-		// chanBackup, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
+		// chanBackups, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
 		// if err != nil {
 		// 	log.Fatal(err)
 		// }
-		// chanBackupJSON, err := json.MarshalIndent(chanBackup, " ", "    ")
-		// if err != nil {
-		// 	log.Fatalf(err.Error())
+
+		// for _, item := range chanBackups.SingleChanBackups.ChannelBackups.ChanBackups {
+		// 	channelBackup := &ChannelBackup{
+		// 		ID:        0,
+		// 		Backup:    string(item.ChanBackup),
+		// 		ChannelID: 43,
+		// 	}
+
+		// 	res, err := db.NewInsert().Model(channelBackup).Returning("*").Exec(dbctx)
+		// 	checkError(err)
+		// 	fmt.Println(res)
 		// }
-		// fmt.Println(string(chanBackupJSON))
 
 		time.Sleep(statusPollInterval * time.Second)
 	}
