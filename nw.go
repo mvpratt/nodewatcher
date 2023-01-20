@@ -131,7 +131,7 @@ func main() {
 		bun.BaseModel `bun:"table:nodes,alias:n"`
 
 		ID       int32  `bun:"id,pk,autoincrement"`
-		URL      string `bun:"url"`
+		URL      string `bun:"url,unique"`
 		Alias    string `bun:"alias"`
 		Pubkey   string `bun:"pubkey"`
 		Macaroon string `bund:"macaroon"`
@@ -147,14 +147,25 @@ func main() {
 	}
 
 	var node Node
-	err := db.NewSelect().
+
+	// insert node in the db
+	_, err := db.NewInsert().
+		Model(&node).
+		Table("nodes").
+		Column("url", "alias", "pubkey", "macaroon").
+		Value(lnHost, "", "", "").
+		On("conflict (\"url\") do nothing").
+		Exec(dbctx)
+
+	err = db.NewSelect().
 		Model(&node).
 		ColumnExpr("url").
 		Where("? = ?", bun.Ident("id"), "1").
 		Scan(dbctx)
 	checkError(err)
-
 	fmt.Println(node)
+
+	// connect to node via grpc
 	client, err := lndclient.NewBasicClient(
 		lnHost,
 		tlsPath,
@@ -224,15 +235,15 @@ func main() {
 		// fmt.Println(string(channelsJSON))
 
 		// static channel backup
-		chanBackup, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
-		if err != nil {
-			log.Fatal(err)
-		}
-		chanBackupJSON, err := json.MarshalIndent(chanBackup, " ", "    ")
-		if err != nil {
-			log.Fatalf(err.Error())
-		}
-		fmt.Println(string(chanBackupJSON))
+		// chanBackup, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// chanBackupJSON, err := json.MarshalIndent(chanBackup, " ", "    ")
+		// if err != nil {
+		// 	log.Fatalf(err.Error())
+		// }
+		// fmt.Println(string(chanBackupJSON))
 
 		time.Sleep(statusPollInterval * time.Second)
 	}
