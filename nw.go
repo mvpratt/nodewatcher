@@ -1,57 +1,25 @@
 package main
 
-// todo - switch to readonly macaroon
+// todo - db migration
+// - refactor functions
+// - stringify backups
+// - node relation
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"strconv"
-	"strings"
 	"time"
+
+	"github.com/mvpratt/nodewatcher/db"
 
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	twilio "github.com/twilio/twilio-go"
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/pgdialect"
-	"github.com/uptrace/bun/driver/pgdriver"
-	"github.com/uptrace/bun/extra/bundebug"
 )
-
-// Node is a Lightning Node
-type Node struct {
-	bun.BaseModel `bun:"table:nodes"`
-
-	ID       int32  `bun:"id,pk,autoincrement"`
-	URL      string `bun:"url,unique"`
-	Alias    string `bun:"alias"`
-	Pubkey   string `bun:"pubkey"`
-	Macaroon string `bund:"macaroon"`
-}
-
-// Channel is a Lightning Channel
-type Channel struct {
-	bun.BaseModel `bun:"table:channels"`
-
-	ID          int32  `bun:"id,pk,autoincrement"`
-	FundingTxid string `bun:"funding_txid"`
-	OutputIndex int64  `bun:"output_index"`
-	NodeID      *Node  `bun:"rel:has-one",join:node_id=id`
-}
-
-// ChannelBackup is a Lightning Channel
-type ChannelBackup struct {
-	bun.BaseModel `bun:"table:channel_backups"`
-
-	ID        int32  `bun:"id,pk,autoincrement"`
-	Backup    string `bun:"backup"`
-	ChannelID int32  `bun:"channel_id"`
-}
 
 // Send a text message
 func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string) error {
@@ -139,27 +107,17 @@ func main() {
 		macDataOption = lndclient.MacaroonData(macaroon)
 	)
 
-	// connect to the database
-	const (
-		host     = "localhost"
-		port     = 5433
-		user     = "user"
-		password = "password"
-		dbname   = "depot"
+	var (
+		host     = requireEnvVar("POSTGRES_HOST")
+		port     = requireEnvVar("POSTGRES_PORT")
+		user     = requireEnvVar("POSTGRES_USER")
+		password = requireEnvVar("POSTGRES_PASSWORD")
+		dbname   = requireEnvVar("POSTGRES_DB")
 	)
-	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
 
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", user, password, host, port, dbname)
-	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
-	db := bun.NewDB(sqldb, pgdialect.New())
+	depotDB := db.ConnectToDB(host, port, user, password, dbname)
 
-	db.AddQueryHook(bundebug.NewQueryHook(
-		bundebug.WithVerbose(true),
-		bundebug.FromEnv("BUNDEBUG"),
-	))
-
-	node := &Node{
+	node := &db.Node{
 		ID:       0,
 		URL:      lnHost,
 		Alias:    "",
@@ -167,14 +125,7 @@ func main() {
 		Macaroon: macaroon,
 	}
 
-	// insert node in the db
-	res, err := db.NewInsert().
-		Model(node).
-		On("conflict (\"url\") do nothing").
-		Exec(dbctx)
-
-	checkError(err)
-	fmt.Println(res)
+	db.InsertNode(node, depotDB)
 
 	// connect to node via grpc
 	client, err := lndclient.NewBasicClient(
@@ -192,13 +143,9 @@ func main() {
 	smsAlreadySent := false
 
 	for true {
-		// Request status from the node
 		fmt.Println("\nGetting node status ...")
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-
-		dbctx, cancel := context.WithTimeout(context.Background(), time.Second) // note - new context
 		defer cancel()
 
 		info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
@@ -228,48 +175,14 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		for _, channel := range channels.Channels {
-			splits := strings.Split(channel.ChannelPoint, ":")
-
-			txid := splits[0]
-			output, err := strconv.ParseInt(splits[1], 10, 32)
-			mychan := &Channel{
-				ID:          0,
-				FundingTxid: txid,
-				OutputIndex: output,
-			}
-
-			res, err := db.NewInsert().
-				Model(mychan).
-				On("conflict (\"funding_txid\",\"output_index\") do nothing").
-				Exec(dbctx)
-			checkError(err)
-			fmt.Println(res)
-		}
+		db.InsertChannels(channels, depotDB)
 
 		// static channel backup
-		// todo - readable string
 		chanBackups, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		for _, item := range chanBackups.SingleChanBackups.ChanBackups {
-			channelBackup := &ChannelBackup{
-				ID:        0,
-				Backup:    string(item.ChanBackup),
-				ChannelID: 43,
-			}
-
-			res, err := db.NewInsert().
-				Model(channelBackup).
-				//On("conflict (\"url\") do nothing").
-				Returning("*").
-				Exec(dbctx)
-			checkError(err)
-			fmt.Println(res)
-		}
+		db.InsertChannelBackups(chanBackups, depotDB)
 
 		time.Sleep(statusPollInterval * time.Second)
 	}
