@@ -1,7 +1,6 @@
 package main
 
 // todo - db migration
-// - refactor functions
 // - stringify backups
 // - node relation
 
@@ -76,6 +75,39 @@ func checkError(err error) {
 	}
 }
 
+func getInfo(client lnrpc.LightningClient) *lnrpc.GetInfoResponse {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	return info
+}
+
+func getChannels(client lnrpc.LightningClient) *lnrpc.ListChannelsResponse {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	channels, err := client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	return channels
+}
+
+func getChannelBackups(client lnrpc.LightningClient) *lnrpc.ChanBackupSnapshot {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	chanBackups, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	return chanBackups
+}
+
 // Once a day, send a text message with lightning node status if SMS_ENABLE is true,
 func main() {
 	const statusPollInterval = 60 // 1 minute
@@ -144,18 +176,9 @@ func main() {
 
 	for true {
 		fmt.Println("\nGetting node status ...")
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-
-		info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
-		if err != nil {
-			log.Fatal(err)
-		}
-
+		info := getInfo(client)
 		textMsg := processGetInfoResponse(info)
 
-		// check to see if desired time
 		isTimeToSendStatus := (time.Now().Hour() == statusNotifyTime)
 
 		if smsEnable == "TRUE" && isTimeToSendStatus == true && smsAlreadySent == false {
@@ -167,21 +190,13 @@ func main() {
 		if isTimeToSendStatus == false && smsAlreadySent == true {
 			smsAlreadySent = false
 		}
-
 		fmt.Println(textMsg)
 
-		//get channels
-		channels, err := client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
-		if err != nil {
-			log.Fatal(err)
-		}
+		channels := getChannels(client)
 		db.InsertChannels(channels, depotDB)
 
 		// static channel backup
-		chanBackups, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
-		if err != nil {
-			log.Fatal(err)
-		}
+		chanBackups := getChannelBackups(client)
 		db.InsertChannelBackups(chanBackups, depotDB)
 
 		time.Sleep(statusPollInterval * time.Second)

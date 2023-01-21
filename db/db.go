@@ -128,8 +128,15 @@ func InsertChannelBackups(backups *lnrpc.ChanBackupSnapshot, depotDB *bun.DB) {
 			Backup:           string(item.ChanBackup),
 			CreatedAt:        time.Now(),
 		}
-		fmt.Println(item.ChanBackup)
-		fmt.Println(string(item.ChanBackup))
+
+		// itemJSON, err := json.MarshalIndent(item, " ", "    ")
+		// if err != nil {
+		// 	log.Fatalf(err.Error())
+		// }
+		// fmt.Println(string(itemJSON))
+
+		// fmt.Println(itemJSON.chan_backup)
+		//fmt.Println(string(item.ChanBackup))
 
 		_, err := depotDB.NewInsert().
 			Model(channelBackup).
