@@ -2,12 +2,17 @@ module github.com/mvpratt/nodewatcher
 
 go 1.19
 
-require github.com/twilio/twilio-go v1.2.1
+require (
+	github.com/lightninglabs/lndclient v0.15.4-1
+	github.com/lightningnetwork/lnd v0.15.5-beta
+	github.com/twilio/twilio-go v1.2.1
+	github.com/uptrace/bun v1.1.10
+	github.com/uptrace/bun/dialect/pgdialect v1.1.10
+	github.com/uptrace/bun/driver/pgdriver v1.1.10
+	github.com/uptrace/bun/extra/bundebug v1.1.10
+)
 
 require (
-	github.com/NebulousLabs/fastrand v0.0.0-20181203155948-6fb6489aac4e // indirect
-	github.com/NebulousLabs/go-upnp v0.0.0-20180202185039-29b680b06c82 // indirect
-	github.com/Yawning/aez v0.0.0-20211027044916-e49e68abd344 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
 	github.com/aead/siphash v1.0.1 // indirect
 	github.com/andybalholm/brotli v1.0.3 // indirect
@@ -29,7 +34,6 @@ require (
 	github.com/btcsuite/winsvc v1.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
-	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/crypto/blake256 v1.0.0 // indirect
@@ -60,8 +64,6 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/jackc/pgtype v1.8.1 // indirect
 	github.com/jackc/pgx/v4 v4.13.0 // indirect
-	github.com/jackpal/gateway v1.0.5 // indirect
-	github.com/jackpal/go-nat-pmp v0.0.0-20170405195558-28a68d0c24ad // indirect
 	github.com/jessevdk/go-flags v1.4.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jonboulle/clockwork v0.2.2 // indirect
@@ -73,11 +75,8 @@ require (
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/lib/pq v1.10.7 // indirect
 	github.com/lightninglabs/gozmq v0.0.0-20191113021534-d20a764486bf // indirect
-	github.com/lightninglabs/lndclient v0.15.4-1 // indirect
 	github.com/lightninglabs/neutrino v0.14.2 // indirect
 	github.com/lightningnetwork/lightning-onion v1.0.2-0.20220211021909-bb84a1ccb0c5 // indirect
-	github.com/lightningnetwork/lnd v0.15.5-beta // indirect
-	github.com/lightningnetwork/lnd/cert v1.1.1 // indirect
 	github.com/lightningnetwork/lnd/clock v1.1.0 // indirect
 	github.com/lightningnetwork/lnd/healthcheck v1.2.2 // indirect
 	github.com/lightningnetwork/lnd/kvdb v1.3.1 // indirect
@@ -110,18 +109,12 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20201229170055-e5319fda7802 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
-	github.com/tv42/zbase32 v0.0.0-20160707012821-501572607d02 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
-	github.com/uptrace/bun v1.1.10 // indirect
-	github.com/uptrace/bun/dialect/pgdialect v1.1.10 // indirect
-	github.com/uptrace/bun/driver/pgdriver v1.1.10 // indirect
-	github.com/uptrace/bun/extra/bundebug v1.1.10 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
-	gitlab.com/yawning/bsaes.git v0.0.0-20190805113838-0a714cd429ec // indirect
 	go.etcd.io/bbolt v1.3.6 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.0 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.0 // indirect
