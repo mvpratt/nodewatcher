@@ -1,22 +1,5 @@
 package main
 
-// todo
-// text when new version of node released
-// make node pubkey unique (and maybe not url...)
-
-// test backups w/ a restore
-// backups from local test network
-// make backups readable in the db
-// link backups to a channel in the db. (funding tx and output index)
-// get streaming backups rather than polling
-// deploy to amazon?
-// switch amazon to read only macaroon
-
-// todo - bitcoin facts project - nodes, liquidity, transactions throughput, miner fees
-// subscribe/unsubscribe (web server)
-
-// proper standalone watchtower in golang
-
 import (
 	"context"
 	"encoding/json"
@@ -209,24 +192,18 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(node2)
 
-		channels := getChannels(client)
-		db.InsertChannels(channels, node2.ID, depotDB)
-
-		channel2, err := db.FindChannelByNodeID(1, depotDB)
-		fmt.Println(channel2)
-		// os.Exit(0)
-
-		// static channel backup
-		chanBackups := getChannelBackups(client)
-		for _, item := range chanBackups.SingleChanBackups.ChanBackups {
-			db.InsertChannelBackup(item, depotDB)
+		response := getChannels(client)
+		for _, item := range response.Channels {
+			db.InsertChannel(item, node2.ID, depotDB)
 		}
 
-		backup2, err := db.FindChannelBackupByChannelID(1, depotDB)
-		fmt.Print(backup2)
-		os.Exit(0)
+		// static channel backup
+		var channelID int64 = 1
+		chanBackups := getChannelBackups(client)
+		for _, item := range chanBackups.SingleChanBackups.ChanBackups {
+			db.InsertChannelBackup(item, channelID, depotDB)
+		}
 
 		time.Sleep(statusPollInterval * time.Second)
 	}

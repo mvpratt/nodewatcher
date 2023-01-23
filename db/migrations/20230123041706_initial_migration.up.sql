@@ -28,7 +28,7 @@ CREATE TABLE "public"."channels" (
 );
 
 --migration:split
---ALTER TABLE "channels" ADD CONSTRAINT channel_to_node FOREIGN KEY ("node_id") REFERENCES "nodes" ("id")
+ALTER TABLE "channels" ADD CONSTRAINT fk_channel_to_node FOREIGN KEY ("node_id") REFERENCES "nodes" ("id");
 
 --migration:split
 ALTER TABLE "channels" ADD CONSTRAINT unique_channel_port UNIQUE ("funding_txid", "output_index");
@@ -46,3 +46,6 @@ CREATE TABLE "public"."channel_backups" (
     "channel_id" int4,
     PRIMARY KEY ("id")
 );
+
+--migration:split
+ALTER TABLE "channel_backups" ADD CONSTRAINT fk_backup_to_channel FOREIGN KEY ("channel_id") REFERENCES "channels" ("id");

@@ -76,7 +76,7 @@ func RunMigrations(db *bun.DB) error {
 	return nil
 }
 
-// ConnectToDB blah
+// ConnectToDB ...
 func ConnectToDB(host string, port string, user string, password string, dbname string) *bun.DB {
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbname)
@@ -96,7 +96,6 @@ func InsertNode(node *Node, depotDB *bun.DB) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	// todo - is returning the id?
 	_, err := depotDB.NewInsert().
 		Model(node).
 		On("conflict (\"url\") do nothing").
@@ -117,38 +116,38 @@ func FindNodeByURL(nodeURL string, depotDB *bun.DB) (Node, error) {
 		Model(&node).
 		Where("url = ?", nodeURL).
 		Scan(dbctx, &node)
+
 	if err != nil {
 		log.Print(err.Error())
 	}
 	return node, err
 }
 
-// InsertChannels adds channels to the db
-func InsertChannels(channels *lnrpc.ListChannelsResponse, nodeID int64, depotDB *bun.DB) {
+// InsertChannel adds a channel to the db
+func InsertChannel(channel *lnrpc.Channel, nodeID int64, depotDB *bun.DB) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	for _, channel := range channels.Channels {
-		splits := strings.Split(channel.ChannelPoint, ":")
-		txid := splits[0]
-		output, err := strconv.ParseInt(splits[1], 10, 32)
+	splits := strings.Split(channel.ChannelPoint, ":")
+	txid := splits[0]
+	output, err := strconv.ParseInt(splits[1], 10, 32)
 
-		mychan := &Channel{
-			ID:          0,
-			FundingTxid: txid,
-			OutputIndex: output,
-			NodeID:      nodeID,
-		}
-
-		_, err = depotDB.NewInsert().
-			Model(mychan).
-			On("conflict (\"funding_txid\",\"output_index\") do nothing").
-			Exec(dbctx)
-
-		if err != nil {
-			log.Print(err.Error())
-		}
+	mychan := &Channel{
+		ID:          0,
+		FundingTxid: txid,
+		OutputIndex: output,
+		NodeID:      nodeID,
 	}
+
+	_, err = depotDB.NewInsert().
+		Model(mychan).
+		On("conflict (\"funding_txid\",\"output_index\") do nothing").
+		Exec(dbctx)
+
+	if err != nil {
+		log.Print(err.Error())
+	}
+
 }
 
 // FindChannelByNodeID gets channel from the db
@@ -169,7 +168,7 @@ func FindChannelByNodeID(nodeID int64, db *bun.DB) (Channel, error) {
 }
 
 // InsertChannelBackup blah
-func InsertChannelBackup(backup *lnrpc.ChannelBackup, depotDB *bun.DB) {
+func InsertChannelBackup(backup *lnrpc.ChannelBackup, channelID int64, depotDB *bun.DB) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -179,19 +178,13 @@ func InsertChannelBackup(backup *lnrpc.ChannelBackup, depotDB *bun.DB) {
 		OutputIndex:      int64(backup.ChanPoint.OutputIndex),
 		Backup:           string(backup.ChanBackup[:]),
 		CreatedAt:        time.Now(),
-		ChannelID:        1,
+		ChannelID:        channelID,
 	}
-
-	// 	itemJSON, err := json.MarshalIndent(backup, " ", "    ")
-	// 	if err != nil {
-	// 		log.Print(err.Error())
-	// 	}
-	// 	fmt.Println(string(itemJSON))
-	// 	fmt.Println(backup.ChanBackup)
 
 	_, err := depotDB.NewInsert().
 		Model(channelBackup).
 		Exec(dbctx)
+
 	if err != nil {
 		log.Print(err.Error())
 	}
