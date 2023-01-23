@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
@@ -10,10 +11,12 @@ import (
 	"time"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/mvpratt/nodewatcher/db/migrations"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
 	"github.com/uptrace/bun/extra/bundebug"
+	"github.com/uptrace/bun/migrate"
 )
 
 // Node is a Lightning Node
@@ -48,6 +51,31 @@ type ChannelBackup struct {
 	CreatedAt        time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp"`
 }
 
+// RunMigrations ...
+func RunMigrations(db *bun.DB) error {
+	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	migrator := migrate.NewMigrator(db, migrations.Migrations)
+	migrator.Init(dbctx)
+
+	if err := migrator.Lock(dbctx); err != nil {
+		return err
+	}
+	defer migrator.Unlock(dbctx) //nolint:errcheck
+
+	group, err := migrator.Migrate(dbctx)
+	if err != nil {
+		return err
+	}
+	if group.IsZero() {
+		fmt.Printf("there are no new migrations to run (database is up to date)\n")
+		return nil
+	}
+	fmt.Printf("migrated to %s\n", group)
+	return nil
+}
+
 // ConnectToDB blah
 func ConnectToDB(host string, port string, user string, password string, dbname string) *bun.DB {
 
@@ -74,7 +102,7 @@ func InsertNode(node *Node, depotDB *bun.DB) {
 		Exec(dbctx)
 
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Print(err.Error())
 	}
 }
 
@@ -100,7 +128,7 @@ func InsertChannels(channels *lnrpc.ListChannelsResponse, depotDB *bun.DB) {
 			Exec(dbctx)
 
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.Print(err.Error())
 		}
 	}
 }
@@ -118,32 +146,33 @@ func InsertChannelBackups(backups *lnrpc.ChanBackupSnapshot, depotDB *bun.DB) {
 		// 	Limit(1).
 		// 	Scan(dbctx, &mychan)
 		// if err != nil {
-		// 	log.Fatalf(err.Error())
+		// 	log.Print(err.Error())
 		// }
 
 		channelBackup := &ChannelBackup{
 			ID:               0,
 			FundingTxidBytes: "placeholder", //string(item.ChanPoint.FundingTxid),
 			OutputIndex:      int64(item.ChanPoint.OutputIndex),
-			Backup:           string(item.ChanBackup),
+			Backup:           string(item.ChanBackup[:]),
 			CreatedAt:        time.Now(),
 		}
 
-		// itemJSON, err := json.MarshalIndent(item, " ", "    ")
-		// if err != nil {
-		// 	log.Fatalf(err.Error())
-		// }
-		// fmt.Println(string(itemJSON))
+		itemJSON, err := json.MarshalIndent(item, " ", "    ")
+		if err != nil {
+			log.Print(err.Error())
+		}
+		fmt.Println(string(itemJSON))
 
+		fmt.Println(item.ChanBackup)
 		// fmt.Println(itemJSON.chan_backup)
 		//fmt.Println(string(item.ChanBackup))
 
-		_, err := depotDB.NewInsert().
+		_, err = depotDB.NewInsert().
 			Model(channelBackup).
 			Returning("*").
 			Exec(dbctx)
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.Print(err.Error())
 		}
 	}
 }

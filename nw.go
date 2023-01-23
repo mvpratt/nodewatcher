@@ -1,9 +1,10 @@
 package main
 
-// todo - db migration
-// - need to research bun migrations more ... should use command line to get started?
-// - stringify backups
+// todo
+// - stringify backups so they are readable .. base64 or hex ...
+// - decrypt backups with aezeed
 // - node relation
+// todo - docker - wait for db up before running code (docker wait script)
 
 import (
 	"context"
@@ -149,9 +150,7 @@ func main() {
 	)
 
 	depotDB := db.ConnectToDB(host, port, user, password, dbname)
-
-	// fmt.Print("exiting after migration\n")
-	// os.Exit(0)
+	db.RunMigrations(depotDB)
 
 	node := &db.Node{
 		ID:       0,
