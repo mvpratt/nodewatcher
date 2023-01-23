@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
@@ -23,7 +22,7 @@ import (
 type Node struct {
 	bun.BaseModel `bun:"table:nodes"`
 
-	ID       int32  `bun:"id,pk,autoincrement"`
+	ID       int64  `bun:"id,pk,autoincrement"`
 	URL      string `bun:"url,unique"`
 	Alias    string `bun:"alias"`
 	Pubkey   string `bun:"pubkey"`
@@ -34,21 +33,22 @@ type Node struct {
 type Channel struct {
 	bun.BaseModel `bun:"table:channels"`
 
-	ID          int32  `bun:"id,pk,autoincrement"`
+	ID          int64  `bun:"id,pk,autoincrement"`
 	FundingTxid string `bun:"funding_txid"`
 	OutputIndex int64  `bun:"output_index"`
-	// NodeID      *Node  `bun:node_id`
+	NodeID      int64  `bun:node_id`
 }
 
 // ChannelBackup is a Lightning Channel
 type ChannelBackup struct {
 	bun.BaseModel `bun:"table:channel_backups"`
 
-	ID               int32     `bun:"id,pk,autoincrement"`
+	ID               int64     `bun:"id,pk,autoincrement"`
 	FundingTxidBytes string    `bun:"funding_txid_bytes"`
 	OutputIndex      int64     `bun:"output_index"`
 	Backup           string    `bun:"backup"`
 	CreatedAt        time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp"`
+	ChannelID        int64     `bun:"channel_id"`
 }
 
 // RunMigrations ...
@@ -96,6 +96,7 @@ func InsertNode(node *Node, depotDB *bun.DB) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	// todo - is returning the id?
 	_, err := depotDB.NewInsert().
 		Model(node).
 		On("conflict (\"url\") do nothing").
@@ -106,19 +107,24 @@ func InsertNode(node *Node, depotDB *bun.DB) {
 	}
 }
 
-// FindNode gets node from the db
-func FindNode(node *Node, depotDB *bun.DB) error {
+// FindNodeByURL gets node from the db
+func FindNodeByURL(nodeURL string, depotDB *bun.DB) (Node, error) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	return depotDB.NewSelect().
-		Model(node).
-		Where("id = ?", 1).
-		Scan(dbctx)
+	var node Node
+	err := depotDB.NewSelect().
+		Model(&node).
+		Where("url = ?", nodeURL).
+		Scan(dbctx, &node)
+	if err != nil {
+		log.Print(err.Error())
+	}
+	return node, err
 }
 
 // InsertChannels adds channels to the db
-func InsertChannels(channels *lnrpc.ListChannelsResponse, depotDB *bun.DB) {
+func InsertChannels(channels *lnrpc.ListChannelsResponse, nodeID int64, depotDB *bun.DB) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -131,6 +137,7 @@ func InsertChannels(channels *lnrpc.ListChannelsResponse, depotDB *bun.DB) {
 			ID:          0,
 			FundingTxid: txid,
 			OutputIndex: output,
+			NodeID:      nodeID,
 		}
 
 		_, err = depotDB.NewInsert().
@@ -144,56 +151,66 @@ func InsertChannels(channels *lnrpc.ListChannelsResponse, depotDB *bun.DB) {
 	}
 }
 
-// FindChannel gets channel from the db
-func FindChannel(channel *Channel, db *bun.DB) error {
+// FindChannelByNodeID gets channel from the db
+func FindChannelByNodeID(nodeID int64, db *bun.DB) (Channel, error) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	return db.NewSelect().
-		Model(channel).
-		Where("id = ?", 1).
-		Scan(dbctx)
+	var c Channel
+	err := db.NewSelect().
+		Model(&c).
+		Where("node_id = ?", nodeID).
+		Scan(dbctx, &c)
+
+	if err != nil {
+		log.Print(err.Error())
+	}
+	return c, err
 }
 
-// InsertChannelBackups blah
-func InsertChannelBackups(backups *lnrpc.ChanBackupSnapshot, depotDB *bun.DB) {
-	for _, item := range backups.SingleChanBackups.ChanBackups {
-		dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
+// InsertChannelBackup blah
+func InsertChannelBackup(backup *lnrpc.ChannelBackup, depotDB *bun.DB) {
+	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
-		channelBackup := &ChannelBackup{
-			ID:               0,
-			FundingTxidBytes: "placeholder",
-			OutputIndex:      int64(item.ChanPoint.OutputIndex),
-			Backup:           string(item.ChanBackup[:]),
-			CreatedAt:        time.Now(),
-		}
+	channelBackup := &ChannelBackup{
+		ID:               0,
+		FundingTxidBytes: "placeholder",
+		OutputIndex:      int64(backup.ChanPoint.OutputIndex),
+		Backup:           string(backup.ChanBackup[:]),
+		CreatedAt:        time.Now(),
+		ChannelID:        1,
+	}
 
-		itemJSON, err := json.MarshalIndent(item, " ", "    ")
-		if err != nil {
-			log.Print(err.Error())
-		}
-		fmt.Println(string(itemJSON))
+	// 	itemJSON, err := json.MarshalIndent(backup, " ", "    ")
+	// 	if err != nil {
+	// 		log.Print(err.Error())
+	// 	}
+	// 	fmt.Println(string(itemJSON))
+	// 	fmt.Println(backup.ChanBackup)
 
-		fmt.Println(item.ChanBackup)
-
-		_, err = depotDB.NewInsert().
-			Model(channelBackup).
-			Returning("*").
-			Exec(dbctx)
-		if err != nil {
-			log.Print(err.Error())
-		}
+	_, err := depotDB.NewInsert().
+		Model(channelBackup).
+		Exec(dbctx)
+	if err != nil {
+		log.Print(err.Error())
 	}
 }
 
-// FindChannelBackup gets backup from the db
-func FindChannelBackup(backup *ChannelBackup, db *bun.DB) error {
+// FindChannelBackupByChannelID gets backup from the db
+func FindChannelBackupByChannelID(channelID int64, db *bun.DB) (ChannelBackup, error) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	return db.NewSelect().
-		Model(backup).
-		Where("id = ?", 1).
-		Scan(dbctx)
+	var cb ChannelBackup
+
+	err := db.NewSelect().
+		Model(&cb).
+		Where("channel_id = ?", channelID).
+		Scan(dbctx, &cb)
+
+	if err != nil {
+		log.Print(err.Error())
+	}
+	return cb, err
 }

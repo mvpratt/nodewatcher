@@ -2,6 +2,7 @@ package main
 
 // todo
 // text when new version of node released
+// make node pubkey unique (and maybe not url...)
 
 // test backups w/ a restore
 // backups from local test network
@@ -170,9 +171,6 @@ func main() {
 	}
 
 	db.InsertNode(node, depotDB)
-	node2 := new(db.Node)
-	err := db.FindNode(node2, depotDB)
-	fmt.Print(node2)
 
 	// connect to node via grpc
 	client, err := lndclient.NewBasicClient(
@@ -207,20 +205,27 @@ func main() {
 		}
 		fmt.Println(textMsg)
 
-		channels := getChannels(client)
-		db.InsertChannels(channels, depotDB)
+		node2, err := db.FindNodeByURL(lnHost, depotDB)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(node2)
 
-		channel := new(db.Channel)
-		db.FindChannel(channel, depotDB)
-		fmt.Print(channel)
+		channels := getChannels(client)
+		db.InsertChannels(channels, node2.ID, depotDB)
+
+		channel2, err := db.FindChannelByNodeID(1, depotDB)
+		fmt.Println(channel2)
+		// os.Exit(0)
 
 		// static channel backup
 		chanBackups := getChannelBackups(client)
-		db.InsertChannelBackups(chanBackups, depotDB)
+		for _, item := range chanBackups.SingleChanBackups.ChanBackups {
+			db.InsertChannelBackup(item, depotDB)
+		}
 
-		backup := new(db.ChannelBackup)
-		db.FindChannelBackup(backup, depotDB)
-		fmt.Print(backup)
+		backup2, err := db.FindChannelBackupByChannelID(1, depotDB)
+		fmt.Print(backup2)
 		os.Exit(0)
 
 		time.Sleep(statusPollInterval * time.Second)

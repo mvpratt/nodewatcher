@@ -23,8 +23,12 @@ CREATE TABLE "public"."channels" (
     "id" int4 NOT NULL DEFAULT nextval('channels_id_seq'::regclass),
     "funding_txid" varchar,
     "output_index" int4,
+    "node_id" int4,
     PRIMARY KEY ("id")
 );
+
+--migration:split
+--ALTER TABLE "channels" ADD CONSTRAINT channel_to_node FOREIGN KEY ("node_id") REFERENCES "nodes" ("id")
 
 --migration:split
 ALTER TABLE "channels" ADD CONSTRAINT unique_channel_port UNIQUE ("funding_txid", "output_index");
@@ -35,9 +39,10 @@ CREATE SEQUENCE IF NOT EXISTS "channelBackups_id_seq";
 --migration:split
 CREATE TABLE "public"."channel_backups" (
     "id" int4 NOT NULL DEFAULT nextval('"channelBackups_id_seq"'::regclass),
-    "backup" varchar,
     "created_at" timestamp,
+    "backup" varchar,
     "funding_txid_bytes" varchar,
     "output_index" int4,
+    "channel_id" int4,
     PRIMARY KEY ("id")
 );
