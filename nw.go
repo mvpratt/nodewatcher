@@ -188,12 +188,22 @@ func main() {
 		}
 		fmt.Println(textMsg)
 
-		channels := getChannels(client)
-		db.InsertChannels(channels, depotDB)
+		node2, err := db.FindNodeByURL(lnHost, depotDB)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		response := getChannels(client)
+		for _, item := range response.Channels {
+			db.InsertChannel(item, node2.ID, depotDB)
+		}
 
 		// static channel backup
+		var channelID int64 = 1
 		chanBackups := getChannelBackups(client)
-		db.InsertChannelBackups(chanBackups, depotDB)
+		for _, item := range chanBackups.SingleChanBackups.ChanBackups {
+			db.InsertChannelBackup(item, channelID, depotDB)
+		}
 
 		time.Sleep(statusPollInterval * time.Second)
 	}
