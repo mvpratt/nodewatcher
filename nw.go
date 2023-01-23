@@ -1,5 +1,21 @@
 package main
 
+// todo
+// text when new version of node released
+
+// test backups w/ a restore
+// backups from local test network
+// make backups readable in the db
+// link backups to a channel in the db. (funding tx and output index)
+// get streaming backups rather than polling
+// deploy to amazon?
+// switch amazon to read only macaroon
+
+// todo - bitcoin facts project - nodes, liquidity, transactions throughput, miner fees
+// subscribe/unsubscribe (web server)
+
+// proper standalone watchtower in golang
+
 import (
 	"context"
 	"encoding/json"
@@ -154,6 +170,9 @@ func main() {
 	}
 
 	db.InsertNode(node, depotDB)
+	node2 := new(db.Node)
+	err := db.FindNode(node2, depotDB)
+	fmt.Print(node2)
 
 	// connect to node via grpc
 	client, err := lndclient.NewBasicClient(
@@ -191,9 +210,18 @@ func main() {
 		channels := getChannels(client)
 		db.InsertChannels(channels, depotDB)
 
+		channel := new(db.Channel)
+		db.FindChannel(channel, depotDB)
+		fmt.Print(channel)
+
 		// static channel backup
 		chanBackups := getChannelBackups(client)
 		db.InsertChannelBackups(chanBackups, depotDB)
+
+		backup := new(db.ChannelBackup)
+		db.FindChannelBackup(backup, depotDB)
+		fmt.Print(backup)
+		os.Exit(0)
 
 		time.Sleep(statusPollInterval * time.Second)
 	}

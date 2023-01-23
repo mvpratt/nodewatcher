@@ -37,6 +37,7 @@ type Channel struct {
 	ID          int32  `bun:"id,pk,autoincrement"`
 	FundingTxid string `bun:"funding_txid"`
 	OutputIndex int64  `bun:"output_index"`
+	// NodeID      *Node  `bun:node_id`
 }
 
 // ChannelBackup is a Lightning Channel
@@ -105,6 +106,17 @@ func InsertNode(node *Node, depotDB *bun.DB) {
 	}
 }
 
+// FindNode gets node from the db
+func FindNode(node *Node, depotDB *bun.DB) error {
+	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	return depotDB.NewSelect().
+		Model(node).
+		Where("id = ?", 1).
+		Scan(dbctx)
+}
+
 // InsertChannels adds channels to the db
 func InsertChannels(channels *lnrpc.ListChannelsResponse, depotDB *bun.DB) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -112,9 +124,9 @@ func InsertChannels(channels *lnrpc.ListChannelsResponse, depotDB *bun.DB) {
 
 	for _, channel := range channels.Channels {
 		splits := strings.Split(channel.ChannelPoint, ":")
-
 		txid := splits[0]
 		output, err := strconv.ParseInt(splits[1], 10, 32)
+
 		mychan := &Channel{
 			ID:          0,
 			FundingTxid: txid,
@@ -130,6 +142,17 @@ func InsertChannels(channels *lnrpc.ListChannelsResponse, depotDB *bun.DB) {
 			log.Print(err.Error())
 		}
 	}
+}
+
+// FindChannel gets channel from the db
+func FindChannel(channel *Channel, db *bun.DB) error {
+	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	return db.NewSelect().
+		Model(channel).
+		Where("id = ?", 1).
+		Scan(dbctx)
 }
 
 // InsertChannelBackups blah
@@ -162,4 +185,15 @@ func InsertChannelBackups(backups *lnrpc.ChanBackupSnapshot, depotDB *bun.DB) {
 			log.Print(err.Error())
 		}
 	}
+}
+
+// FindChannelBackup gets backup from the db
+func FindChannelBackup(backup *ChannelBackup, db *bun.DB) error {
+	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	return db.NewSelect().
+		Model(backup).
+		Where("id = ?", 1).
+		Scan(dbctx)
 }
