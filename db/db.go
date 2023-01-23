@@ -37,7 +37,6 @@ type Channel struct {
 	ID          int32  `bun:"id,pk,autoincrement"`
 	FundingTxid string `bun:"funding_txid"`
 	OutputIndex int64  `bun:"output_index"`
-	//NodeID      *Node  `bun:"node_id"`
 }
 
 // ChannelBackup is a Lightning Channel
@@ -108,7 +107,7 @@ func InsertNode(node *Node, depotDB *bun.DB) {
 
 // InsertChannels adds channels to the db
 func InsertChannels(channels *lnrpc.ListChannelsResponse, depotDB *bun.DB) {
-	dbctx, cancel := context.WithTimeout(context.Background(), time.Second) // note - new context
+	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	for _, channel := range channels.Channels {
@@ -139,19 +138,9 @@ func InsertChannelBackups(backups *lnrpc.ChanBackupSnapshot, depotDB *bun.DB) {
 		dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		// var mychan Channel
-		// err := depotDB.NewSelect().
-		// 	Table("channels").
-		// 	Where("funding_txid = ? and output_index = ?", item.ChanPoint.FundingTxid.FundingTxidBytes, item.ChanPoint.OutputIndex).
-		// 	Limit(1).
-		// 	Scan(dbctx, &mychan)
-		// if err != nil {
-		// 	log.Print(err.Error())
-		// }
-
 		channelBackup := &ChannelBackup{
 			ID:               0,
-			FundingTxidBytes: "placeholder", //string(item.ChanPoint.FundingTxid),
+			FundingTxidBytes: "placeholder",
 			OutputIndex:      int64(item.ChanPoint.OutputIndex),
 			Backup:           string(item.ChanBackup[:]),
 			CreatedAt:        time.Now(),
@@ -164,8 +153,6 @@ func InsertChannelBackups(backups *lnrpc.ChanBackupSnapshot, depotDB *bun.DB) {
 		fmt.Println(string(itemJSON))
 
 		fmt.Println(item.ChanBackup)
-		// fmt.Println(itemJSON.chan_backup)
-		//fmt.Println(string(item.ChanBackup))
 
 		_, err = depotDB.NewInsert().
 			Model(channelBackup).

@@ -1,11 +1,5 @@
 package main
 
-// todo
-// - stringify backups so they are readable .. base64 or hex ...
-// - decrypt backups with aezeed
-// - node relation
-// todo - docker - wait for db up before running code (docker wait script)
-
 import (
 	"context"
 	"encoding/json"
@@ -52,7 +46,6 @@ func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
 		log.Print(err.Error())
 	}
 	statusString := string(statusJSON)
-	//fmt.Println(string(statusJSON))
 
 	if info.SyncedToChain != true {
 		return fmt.Sprintf("\n\nWARNING: Lightning node is not fully synced."+
