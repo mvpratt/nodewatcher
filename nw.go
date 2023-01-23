@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/mvpratt/nodewatcher/db"
+
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	twilio "github.com/twilio/twilio-go"
@@ -41,7 +43,7 @@ func requireEnvVar(varName string) string {
 func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
 	statusJSON, err := json.MarshalIndent(info, " ", "    ")
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Print(err.Error())
 	}
 	statusString := string(statusJSON)
 
@@ -62,12 +64,52 @@ func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
 			"\nLast block received %s ago", info.Alias, timeSinceLastBlock)
 }
 
+func checkError(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func getInfo(client lnrpc.LightningClient) *lnrpc.GetInfoResponse {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	if err != nil {
+		log.Print(err)
+	}
+	return info
+}
+
+func getChannels(client lnrpc.LightningClient) *lnrpc.ListChannelsResponse {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	channels, err := client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
+	if err != nil {
+		log.Print(err)
+	}
+	return channels
+}
+
+func getChannelBackups(client lnrpc.LightningClient) *lnrpc.ChanBackupSnapshot {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	chanBackups, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
+	if err != nil {
+		log.Print(err)
+	}
+	return chanBackups
+}
+
 // Once a day, send a text message with lightning node status if SMS_ENABLE is true,
 func main() {
 	const statusPollInterval = 60 // 1 minute
 	const statusNotifyTime = 1    // when time = 01:00 UTC
 
 	smsEnable := requireEnvVar("SMS_ENABLE")
+	macaroon := requireEnvVar("MACAROON_HEADER")
 
 	var smsTo, smsFrom string
 	var twilioClient *twilio.RestClient
@@ -89,9 +131,31 @@ func main() {
 		macDir        = ""
 		network       = "mainnet"
 		tlsOption     = lndclient.Insecure()
-		macDataOption = lndclient.MacaroonData(requireEnvVar("MACAROON_HEADER"))
+		macDataOption = lndclient.MacaroonData(macaroon)
 	)
 
+	var (
+		host     = requireEnvVar("POSTGRES_HOST")
+		port     = requireEnvVar("POSTGRES_PORT")
+		user     = requireEnvVar("POSTGRES_USER")
+		password = requireEnvVar("POSTGRES_PASSWORD")
+		dbname   = requireEnvVar("POSTGRES_DB")
+	)
+
+	depotDB := db.ConnectToDB(host, port, user, password, dbname)
+	db.RunMigrations(depotDB)
+
+	node := &db.Node{
+		ID:       0,
+		URL:      lnHost,
+		Alias:    "",
+		Pubkey:   "",
+		Macaroon: macaroon,
+	}
+
+	db.InsertNode(node, depotDB)
+
+	// connect to node via grpc
 	client, err := lndclient.NewBasicClient(
 		lnHost,
 		tlsPath,
@@ -107,20 +171,10 @@ func main() {
 	smsAlreadySent := false
 
 	for true {
-		// Request status from the node
 		fmt.Println("\nGetting node status ...")
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-
-		info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
-		if err != nil {
-			log.Fatal(err)
-		}
-
+		info := getInfo(client)
 		textMsg := processGetInfoResponse(info)
 
-		// check to see if desired time
 		isTimeToSendStatus := (time.Now().Hour() == statusNotifyTime)
 
 		if smsEnable == "TRUE" && isTimeToSendStatus == true && smsAlreadySent == false {
@@ -132,8 +186,15 @@ func main() {
 		if isTimeToSendStatus == false && smsAlreadySent == true {
 			smsAlreadySent = false
 		}
-
 		fmt.Println(textMsg)
+
+		channels := getChannels(client)
+		db.InsertChannels(channels, depotDB)
+
+		// static channel backup
+		chanBackups := getChannelBackups(client)
+		db.InsertChannelBackups(chanBackups, depotDB)
+
 		time.Sleep(statusPollInterval * time.Second)
 	}
 }
