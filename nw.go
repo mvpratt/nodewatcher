@@ -1,6 +1,7 @@
 package main
 
 // todo - db migration
+// - need to research bun migrations more ... should use command line to get started?
 // - stringify backups
 // - node relation
 
@@ -47,7 +48,7 @@ func requireEnvVar(varName string) string {
 func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
 	statusJSON, err := json.MarshalIndent(info, " ", "    ")
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Print(err.Error())
 	}
 	statusString := string(statusJSON)
 	//fmt.Println(string(statusJSON))
@@ -81,7 +82,7 @@ func getInfo(client lnrpc.LightningClient) *lnrpc.GetInfoResponse {
 
 	info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
 	return info
 }
@@ -92,7 +93,7 @@ func getChannels(client lnrpc.LightningClient) *lnrpc.ListChannelsResponse {
 
 	channels, err := client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
 	return channels
 }
@@ -103,7 +104,7 @@ func getChannelBackups(client lnrpc.LightningClient) *lnrpc.ChanBackupSnapshot {
 
 	chanBackups, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
 	return chanBackups
 }
@@ -148,6 +149,9 @@ func main() {
 	)
 
 	depotDB := db.ConnectToDB(host, port, user, password, dbname)
+
+	// fmt.Print("exiting after migration\n")
+	// os.Exit(0)
 
 	node := &db.Node{
 		ID:       0,
