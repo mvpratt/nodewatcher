@@ -13,7 +13,7 @@ CREATE TABLE "public"."nodes" (
 );
 
 --migration:split
-ALTER TABLE "nodes" ADD CONSTRAINT unique_node_url UNIQUE ("url");
+ALTER TABLE "nodes" ADD CONSTRAINT unique_node_pubkey UNIQUE ("pubkey");
 
 --migration:split
 CREATE SEQUENCE IF NOT EXISTS channels_id_seq;
