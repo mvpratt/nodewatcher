@@ -40,19 +40,28 @@ type Channel struct {
 	NodeID      int64  `bun:node_id`
 }
 
-// ChannelBackup is a Lightning Channel
+// ChannelBackup is ...
 type ChannelBackup struct {
 	bun.BaseModel `bun:"table:channel_backups"`
 
 	ID               int64     `bun:"id,pk,autoincrement"`
+	CreatedAt        time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp"`
 	FundingTxidBytes string    `bun:"funding_txid_bytes"`
 	OutputIndex      int64     `bun:"output_index"`
 	Backup           string    `bun:"backup"`
-	CreatedAt        time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp"`
-	ChannelID        int64     `bun:"channel_id"`
 }
 
-// RunMigrations ...
+// MultiChannelBackup is an encrypted backup of a lightning channel state
+type MultiChannelBackup struct {
+	bun.BaseModel `bun:"table:multi_channel_backups"`
+
+	ID        int64     `bun:"id,pk,autoincrement"`
+	CreatedAt time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp"`
+	Backup    string    `bun:"backup"`
+	NodeID    int64     `bun:node_id`
+}
+
+// RunMigrations gets all *.up.sql files from /migrations and runs the SQL queries
 func RunMigrations(db *bun.DB) error {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -77,7 +86,7 @@ func RunMigrations(db *bun.DB) error {
 	return nil
 }
 
-// ConnectToDB ...
+// ConnectToDB connects to a Postgre database with the credentials provided
 func ConnectToDB(host string, port string, user string, password string, dbname string) *bun.DB {
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbname)
@@ -92,12 +101,12 @@ func ConnectToDB(host string, port string, user string, password string, dbname 
 	return depotDB
 }
 
-// InsertNode adds node to the db
-func InsertNode(node *Node, depotDB *bun.DB) {
+// InsertNode adds a lightning node to the database
+func InsertNode(node *Node, db *bun.DB) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	_, err := depotDB.NewInsert().
+	_, err := db.NewInsert().
 		Model(node).
 		On("conflict (\"pubkey\") do nothing").
 		Exec(dbctx)
@@ -108,12 +117,12 @@ func InsertNode(node *Node, depotDB *bun.DB) {
 }
 
 // FindNodeByURL gets node from the db
-func FindNodeByURL(nodeURL string, depotDB *bun.DB) (Node, error) {
+func FindNodeByURL(nodeURL string, db *bun.DB) (Node, error) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	var node Node
-	err := depotDB.NewSelect().
+	err := db.NewSelect().
 		Model(&node).
 		Where("url = ?", nodeURL).
 		Scan(dbctx, &node)
@@ -125,12 +134,12 @@ func FindNodeByURL(nodeURL string, depotDB *bun.DB) (Node, error) {
 }
 
 // FindNodeByPubkey gets node from the db
-func FindNodeByPubkey(pubkey string, depotDB *bun.DB) (Node, error) {
+func FindNodeByPubkey(pubkey string, db *bun.DB) (Node, error) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	var node Node
-	err := depotDB.NewSelect().
+	err := db.NewSelect().
 		Model(&node).
 		Where("pubkey = ?", pubkey).
 		Scan(dbctx, &node)
@@ -142,11 +151,11 @@ func FindNodeByPubkey(pubkey string, depotDB *bun.DB) (Node, error) {
 }
 
 // InsertChannel adds a channel to the db
-func InsertChannel(channel *lnrpc.Channel, nodePubkey string, depotDB *bun.DB) {
+func InsertChannel(channel *lnrpc.Channel, pubkey string, db *bun.DB) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	nodeFromDB, err := FindNodeByPubkey(nodePubkey, depotDB)
+	nodeFromDB, err := FindNodeByPubkey(pubkey, db)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -162,7 +171,7 @@ func InsertChannel(channel *lnrpc.Channel, nodePubkey string, depotDB *bun.DB) {
 		NodeID:      nodeFromDB.ID,
 	}
 
-	_, err = depotDB.NewInsert().
+	_, err = db.NewInsert().
 		Model(mychan).
 		On("conflict (\"funding_txid\",\"output_index\") do nothing").
 		Exec(dbctx)
@@ -173,14 +182,14 @@ func InsertChannel(channel *lnrpc.Channel, nodePubkey string, depotDB *bun.DB) {
 }
 
 // FindChannelByNodeID gets channel from the db
-func FindChannelByNodeID(nodeID int64, db *bun.DB) (Channel, error) {
+func FindChannelByNodeID(id int64, db *bun.DB) (Channel, error) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	var c Channel
 	err := db.NewSelect().
 		Model(&c).
-		Where("node_id = ?", nodeID).
+		Where("node_id = ?", id).
 		Scan(dbctx, &c)
 
 	if err != nil {
@@ -190,7 +199,7 @@ func FindChannelByNodeID(nodeID int64, db *bun.DB) (Channel, error) {
 }
 
 // InsertChannelBackup adds a static channel backup to the database
-func InsertChannelBackup(backup *lnrpc.ChannelBackup, channelID int64, depotDB *bun.DB) {
+func InsertChannelBackup(backup *lnrpc.ChannelBackup, db *bun.DB) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -202,10 +211,9 @@ func InsertChannelBackup(backup *lnrpc.ChannelBackup, channelID int64, depotDB *
 		OutputIndex:      int64(backup.ChanPoint.OutputIndex),
 		Backup:           base64.StdEncoding.EncodeToString(backup.ChanBackup),
 		CreatedAt:        time.Now(),
-		ChannelID:        channelID,
 	}
 
-	_, err := depotDB.NewInsert().
+	_, err := db.NewInsert().
 		Model(channelBackup).
 		Exec(dbctx)
 
@@ -214,20 +222,51 @@ func InsertChannelBackup(backup *lnrpc.ChannelBackup, channelID int64, depotDB *
 	}
 }
 
-// FindChannelBackupByChannelID gets a backup from the db
-func FindChannelBackupByChannelID(channelID int64, db *bun.DB) (ChannelBackup, error) {
+// InsertMultiChannelBackup adds a static channel backup of all channels to the database
+func InsertMultiChannelBackup(backup *lnrpc.MultiChanBackup, pubkey string, db *bun.DB) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var cb ChannelBackup
+	nodeFromDB, err := FindNodeByPubkey(pubkey, db)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	err := db.NewSelect().
-		Model(&cb).
-		Where("channel_id = ?", channelID).
-		Scan(dbctx, &cb)
+	multiBackup := &MultiChannelBackup{
+		ID:        0,
+		Backup:    base64.StdEncoding.EncodeToString(backup.MultiChanBackup),
+		NodeID:    nodeFromDB.ID,
+		CreatedAt: time.Now(),
+	}
+	_, err = db.NewInsert().
+		Model(multiBackup).
+		Exec(dbctx)
 
 	if err != nil {
 		log.Print(err.Error())
 	}
-	return cb, err
+}
+
+// FindMultiChannelBackupByPubkey gets the most recent multi channel backup from the db
+func FindMultiChannelBackupByPubkey(pubkey string, db *bun.DB) (MultiChannelBackup, error) {
+	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	nodeFromDB, err := FindNodeByPubkey(pubkey, db)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var mc MultiChannelBackup
+	err = db.NewSelect().
+		Model(&mc).
+		Where("node_id = ?", nodeFromDB.ID).
+		OrderExpr("created_at DESC").
+		Limit(1).
+		Scan(dbctx, &mc)
+
+	if err != nil {
+		log.Print(err.Error())
+	}
+	return mc, err
 }
