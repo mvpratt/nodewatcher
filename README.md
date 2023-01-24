@@ -1,8 +1,18 @@
 
 # Nodewatcher
 
-This is a simple program to monitor the status of a Lightning Node and send SMS
-alerts if any issues are detected
+This program monitors the status of a Lightning Node and sends an alert if an issue is detected.
+
+### Features
+Health Monitor
+- Sends an SMS alert if node is offline
+
+Static Channel Backups
+- Backs up channel state to a postgres database
+
+### Future work
+- Restore backups
+- Telegram, Slack, Discord integration
 
 ## Rationale
 
