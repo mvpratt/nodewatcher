@@ -103,6 +103,17 @@ func getChannelBackups(client lnrpc.LightningClient) *lnrpc.ChanBackupSnapshot {
 	return chanBackups
 }
 
+func verifyBackup(client lnrpc.LightningClient, snapshot lnrpc.ChanBackupSnapshot) *lnrpc.VerifyChanBackupResponse {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	response, err := client.VerifyChanBackup(ctx, &snapshot)
+	if err != nil {
+		log.Print(err)
+	}
+	return response
+}
+
 // Once a day, send a text message with lightning node status if SMS_ENABLE is true,
 func main() {
 	const statusPollInterval = 60 // 1 minute
@@ -147,6 +158,7 @@ func main() {
 	db.RunMigrations(depotDB)
 
 	// connect to node via grpc
+	// todo -- add tls cert for encrypted comms
 	client, err := lndclient.NewBasicClient(
 		lnHost,
 		tlsPath,
@@ -196,10 +208,19 @@ func main() {
 		}
 
 		// static channel backup
-		var channelID int64 = 1
 		chanBackups := getChannelBackups(client)
 		for _, item := range chanBackups.SingleChanBackups.ChanBackups {
-			db.InsertChannelBackup(item, channelID, depotDB)
+			db.InsertChannelBackup(item, depotDB)
+		}
+
+		// mulitchannel backup
+		db.InsertMultiChannelBackup(chanBackups.MultiChanBackup, node.Pubkey, depotDB)
+
+		// get backup from db
+		multiBackup, err := db.FindMultiChannelBackupByPubkey(node.Pubkey, depotDB)
+		fmt.Println(multiBackup)
+		if err != nil {
+			log.Print(err.Error())
 		}
 
 		time.Sleep(statusPollInterval * time.Second)
