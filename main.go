@@ -138,10 +138,9 @@ func main() {
 
 	var (
 		lnHost        = requireEnvVar("LN_NODE_URL")
-		tlsPath       = ""
+		tlsPath       = requireEnvVar("LND_TLS_CERT_PATH")
 		macDir        = ""
 		network       = "mainnet"
-		tlsOption     = lndclient.Insecure()
 		macDataOption = lndclient.MacaroonData(macaroon)
 	)
 
@@ -158,13 +157,11 @@ func main() {
 	db.RunMigrations(depotDB)
 
 	// connect to node via grpc
-	// todo -- add tls cert for encrypted comms
 	client, err := lndclient.NewBasicClient(
 		lnHost,
 		tlsPath,
 		macDir,
 		network,
-		tlsOption,
 		macDataOption,
 	)
 	if err != nil {
