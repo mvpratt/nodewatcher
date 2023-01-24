@@ -64,12 +64,6 @@ func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
 			"\nLast block received %s ago", info.Alias, timeSinceLastBlock)
 }
 
-func checkError(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
 func getInfo(client lnrpc.LightningClient) *lnrpc.GetInfoResponse {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -183,7 +177,10 @@ func main() {
 			Macaroon: macaroon,
 		}
 
-		db.InsertNode(node, depotDB)
+		err = db.InsertNode(node, depotDB)
+		if err != nil {
+			log.Print(err.Error())
+		}
 
 		textMsg := processGetInfoResponse(nodeInfo)
 		isTimeToSendStatus := (time.Now().Hour() == statusNotifyTime)
@@ -201,17 +198,26 @@ func main() {
 
 		response := getChannels(client)
 		for _, item := range response.Channels {
-			db.InsertChannel(item, node.Pubkey, depotDB)
+			err = db.InsertChannel(item, node.Pubkey, depotDB)
+			if err != nil {
+				log.Print(err.Error())
+			}
 		}
 
 		// static channel backup
 		chanBackups := getChannelBackups(client)
 		for _, item := range chanBackups.SingleChanBackups.ChanBackups {
-			db.InsertChannelBackup(item, depotDB)
+			err = db.InsertChannelBackup(item, depotDB)
+			if err != nil {
+				log.Print(err.Error())
+			}
 		}
 
 		// mulitchannel backup
-		db.InsertMultiChannelBackup(chanBackups.MultiChanBackup, node.Pubkey, depotDB)
+		err = db.InsertMultiChannelBackup(chanBackups.MultiChanBackup, node.Pubkey, depotDB)
+		if err != nil {
+			log.Print(err.Error())
+		}
 
 		// get backup from db
 		multiBackup, err := db.FindMultiChannelBackupByPubkey(node.Pubkey, depotDB)
