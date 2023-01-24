@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"strconv"
@@ -167,16 +168,18 @@ func FindChannelByNodeID(nodeID int64, db *bun.DB) (Channel, error) {
 	return c, err
 }
 
-// InsertChannelBackup blah
+// InsertChannelBackup adds a static channel backup to the database
 func InsertChannelBackup(backup *lnrpc.ChannelBackup, channelID int64, depotDB *bun.DB) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	fundingTxidBytes := backup.ChanPoint.FundingTxid.(*lnrpc.ChannelPoint_FundingTxidBytes).FundingTxidBytes
+
 	channelBackup := &ChannelBackup{
 		ID:               0,
-		FundingTxidBytes: "placeholder",
+		FundingTxidBytes: base64.StdEncoding.EncodeToString(fundingTxidBytes),
 		OutputIndex:      int64(backup.ChanPoint.OutputIndex),
-		Backup:           string(backup.ChanBackup[:]),
+		Backup:           base64.StdEncoding.EncodeToString(backup.ChanBackup),
 		CreatedAt:        time.Now(),
 		ChannelID:        channelID,
 	}
@@ -190,7 +193,7 @@ func InsertChannelBackup(backup *lnrpc.ChannelBackup, channelID int64, depotDB *
 	}
 }
 
-// FindChannelBackupByChannelID gets backup from the db
+// FindChannelBackupByChannelID gets a backup from the db
 func FindChannelBackupByChannelID(channelID int64, db *bun.DB) (ChannelBackup, error) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
