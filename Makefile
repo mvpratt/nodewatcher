@@ -6,7 +6,7 @@ lint:
 
 .PHONY:build
 build: lint
-	go build nw.go
+	go build -o nw
 
 .PHONY:run
 run:

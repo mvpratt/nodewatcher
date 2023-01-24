@@ -11,7 +11,6 @@ RUN go install golang.org/x/lint/golint@latest
 RUN mkdir /home/nodewatcher
 WORKDIR /home/nodewatcher
 COPY . .
-RUN go install -v
 RUN make build
 
 ###### Final image optimized for size ######
