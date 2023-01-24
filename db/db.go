@@ -99,7 +99,7 @@ func InsertNode(node *Node, depotDB *bun.DB) {
 
 	_, err := depotDB.NewInsert().
 		Model(node).
-		On("conflict (\"url\") do nothing").
+		On("conflict (\"pubkey\") do nothing").
 		Exec(dbctx)
 
 	if err != nil {
@@ -124,10 +124,32 @@ func FindNodeByURL(nodeURL string, depotDB *bun.DB) (Node, error) {
 	return node, err
 }
 
-// InsertChannel adds a channel to the db
-func InsertChannel(channel *lnrpc.Channel, nodeID int64, depotDB *bun.DB) {
+// FindNodeByPubkey gets node from the db
+func FindNodeByPubkey(pubkey string, depotDB *bun.DB) (Node, error) {
 	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
+
+	var node Node
+	err := depotDB.NewSelect().
+		Model(&node).
+		Where("pubkey = ?", pubkey).
+		Scan(dbctx, &node)
+
+	if err != nil {
+		log.Print(err.Error())
+	}
+	return node, err
+}
+
+// InsertChannel adds a channel to the db
+func InsertChannel(channel *lnrpc.Channel, nodePubkey string, depotDB *bun.DB) {
+	dbctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	nodeFromDB, err := FindNodeByPubkey(nodePubkey, depotDB)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	splits := strings.Split(channel.ChannelPoint, ":")
 	txid := splits[0]
@@ -137,7 +159,7 @@ func InsertChannel(channel *lnrpc.Channel, nodeID int64, depotDB *bun.DB) {
 		ID:          0,
 		FundingTxid: txid,
 		OutputIndex: output,
-		NodeID:      nodeID,
+		NodeID:      nodeFromDB.ID,
 	}
 
 	_, err = depotDB.NewInsert().
@@ -148,7 +170,6 @@ func InsertChannel(channel *lnrpc.Channel, nodeID int64, depotDB *bun.DB) {
 	if err != nil {
 		log.Print(err.Error())
 	}
-
 }
 
 // FindChannelByNodeID gets channel from the db

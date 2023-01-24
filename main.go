@@ -142,18 +142,9 @@ func main() {
 		dbname   = requireEnvVar("POSTGRES_DB")
 	)
 
+	// connect to database
 	depotDB := db.ConnectToDB(host, port, user, password, dbname)
 	db.RunMigrations(depotDB)
-
-	node := &db.Node{
-		ID:       0,
-		URL:      lnHost,
-		Alias:    "",
-		Pubkey:   "",
-		Macaroon: macaroon,
-	}
-
-	db.InsertNode(node, depotDB)
 
 	// connect to node via grpc
 	client, err := lndclient.NewBasicClient(
@@ -172,9 +163,20 @@ func main() {
 
 	for true {
 		fmt.Println("\nGetting node status ...")
-		info := getInfo(client)
-		textMsg := processGetInfoResponse(info)
 
+		nodeInfo := getInfo(client)
+
+		node := &db.Node{
+			ID:       0,
+			URL:      lnHost,
+			Alias:    nodeInfo.Alias,
+			Pubkey:   nodeInfo.IdentityPubkey,
+			Macaroon: macaroon,
+		}
+
+		db.InsertNode(node, depotDB)
+
+		textMsg := processGetInfoResponse(nodeInfo)
 		isTimeToSendStatus := (time.Now().Hour() == statusNotifyTime)
 
 		if smsEnable == "TRUE" && isTimeToSendStatus == true && smsAlreadySent == false {
@@ -188,14 +190,9 @@ func main() {
 		}
 		fmt.Println(textMsg)
 
-		node2, err := db.FindNodeByURL(lnHost, depotDB)
-		if err != nil {
-			log.Fatal(err)
-		}
-
 		response := getChannels(client)
 		for _, item := range response.Channels {
-			db.InsertChannel(item, node2.ID, depotDB)
+			db.InsertChannel(item, node.Pubkey, depotDB)
 		}
 
 		// static channel backup
