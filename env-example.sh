@@ -1,6 +1,7 @@
 #!/bin/sh
 export LN_NODE_URL=abcxyz.io:10009
 export MACAROON_HEADER=ABCD01234567
+export LND_TLS_CERT_PATH=/path/to/tls.cert
 export SMS_ENABLE=TRUE
 export TWILIO_ACCOUNT_SID=ABCD
 export TWILIO_AUTH_TOKEN=BEEF42
