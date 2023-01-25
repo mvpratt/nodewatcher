@@ -168,7 +168,7 @@ func main() {
 	}
 
 	depotDB := db.ConnectToDB(dbParams)
-	db.EnableDebugLogs(depotDB)
+	//db.EnableDebugLogs(depotDB)
 	db.RunMigrations(depotDB)
 
 	// connect to node via grpc
