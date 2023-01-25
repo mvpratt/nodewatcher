@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/mvpratt/nodewatcher/db"
+	"github.com/uptrace/bun"
 
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -62,6 +63,33 @@ func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
 	return fmt.Sprintf(
 		"\nGood news, lightning node \"%s\" is fully synced!"+
 			"\nLast block received %s ago", info.Alias, timeSinceLastBlock)
+}
+
+func saveChannelBackups(node *db.Node, client lnrpc.LightningClient, depotDB *bun.DB) error {
+	response := getChannels(client)
+	for _, item := range response.Channels {
+		err := db.InsertChannel(item, node.Pubkey, depotDB)
+		if err != nil {
+			return err
+		}
+	}
+
+	// static channel backup
+	chanBackups := getChannelBackups(client)
+	for _, item := range chanBackups.SingleChanBackups.ChanBackups {
+		err := db.InsertChannelBackup(item, depotDB)
+		if err != nil {
+			return err
+		}
+	}
+
+	// mulitchannel backup
+	err := db.InsertMultiChannelBackup(chanBackups.MultiChanBackup, node.Pubkey, depotDB)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func getInfo(client lnrpc.LightningClient) *lnrpc.GetInfoResponse {
@@ -130,6 +158,20 @@ func main() {
 			"Set environment variable SMS_ENABLE to TRUE to enable SMS status updates")
 	}
 
+	// connect to database
+	dbParams := &db.ConnectionParams{
+		Host:         requireEnvVar("POSTGRES_HOST"),
+		Port:         requireEnvVar("POSTGRES_PORT"),
+		User:         requireEnvVar("POSTGRES_USER"),
+		Password:     requireEnvVar("POSTGRES_PASSWORD"),
+		DatabaseName: requireEnvVar("POSTGRES_DB"),
+	}
+
+	depotDB := db.ConnectToDB(dbParams)
+	db.EnableDebugLogs(depotDB)
+	db.RunMigrations(depotDB)
+
+	// connect to node via grpc
 	var (
 		lnHost        = requireEnvVar("LN_NODE_URL")
 		tlsPath       = requireEnvVar("LND_TLS_CERT_PATH")
@@ -138,26 +180,7 @@ func main() {
 		macDataOption = lndclient.MacaroonData(macaroon)
 	)
 
-	var (
-		host     = requireEnvVar("POSTGRES_HOST")
-		port     = requireEnvVar("POSTGRES_PORT")
-		user     = requireEnvVar("POSTGRES_USER")
-		password = requireEnvVar("POSTGRES_PASSWORD")
-		dbname   = requireEnvVar("POSTGRES_DB")
-	)
-
-	// connect to database
-	depotDB := db.ConnectToDB(host, port, user, password, dbname)
-	db.RunMigrations(depotDB)
-
-	// connect to node via grpc
-	client, err := lndclient.NewBasicClient(
-		lnHost,
-		tlsPath,
-		macDir,
-		network,
-		macDataOption,
-	)
+	client, err := lndclient.NewBasicClient(lnHost, tlsPath, macDir, network, macDataOption)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -196,35 +219,17 @@ func main() {
 		}
 		fmt.Println(textMsg)
 
-		response := getChannels(client)
-		for _, item := range response.Channels {
-			err = db.InsertChannel(item, node.Pubkey, depotDB)
-			if err != nil {
-				log.Print(err.Error())
-			}
-		}
-
-		// static channel backup
-		chanBackups := getChannelBackups(client)
-		for _, item := range chanBackups.SingleChanBackups.ChanBackups {
-			err = db.InsertChannelBackup(item, depotDB)
-			if err != nil {
-				log.Print(err.Error())
-			}
-		}
-
-		// mulitchannel backup
-		err = db.InsertMultiChannelBackup(chanBackups.MultiChanBackup, node.Pubkey, depotDB)
+		err := saveChannelBackups(node, client, depotDB)
 		if err != nil {
 			log.Print(err.Error())
 		}
 
+		// WIP
 		// get backup from db
-		multiBackup, err := db.FindMultiChannelBackupByPubkey(node.Pubkey, depotDB)
-		fmt.Println(multiBackup)
-		if err != nil {
-			log.Print(err.Error())
-		}
+		// multiBackup, err := db.FindMultiChannelBackupByPubkey(node.Pubkey, depotDB)
+		// if err != nil {
+		// 	log.Print(err.Error())
+		// }
 
 		time.Sleep(statusPollInterval * time.Second)
 	}

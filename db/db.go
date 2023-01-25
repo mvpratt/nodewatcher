@@ -1,3 +1,5 @@
+// Package db implements database models, insert and select functions for a postgres database using
+// the "bun" ORM (github.com/uptrace/bun)
 package db
 
 import (
@@ -18,6 +20,15 @@ import (
 	"github.com/uptrace/bun/extra/bundebug"
 	"github.com/uptrace/bun/migrate"
 )
+
+// ConnectionParams include database credentials and network details
+type ConnectionParams struct {
+	Host         string
+	Port         string
+	User         string
+	Password     string
+	DatabaseName string
+}
 
 // Node is a Lightning Node
 type Node struct {
@@ -40,7 +51,7 @@ type Channel struct {
 	NodeID      int64  `bun:node_id`
 }
 
-// ChannelBackup is ...
+// ChannelBackup is an encrypted static channel backup of a single lightning channel
 type ChannelBackup struct {
 	bun.BaseModel `bun:"table:channel_backups"`
 
@@ -61,7 +72,7 @@ type MultiChannelBackup struct {
 	NodeID    int64     `bun:node_id`
 }
 
-// RunMigrations gets all *.up.sql files from /migrations and runs the SQL queries
+// RunMigrations gets all *.sql files from /migrations and runs them to create tables and constraints
 func RunMigrations(db *bun.DB) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -85,19 +96,21 @@ func RunMigrations(db *bun.DB) error {
 	return nil
 }
 
-// ConnectToDB connects to a Postgre database with the credentials provided
-func ConnectToDB(host string, port string, user string, password string, dbname string) *bun.DB {
+// ConnectToDB connects to a Postgres database with the credentials provided
+func ConnectToDB(params *ConnectionParams) *bun.DB {
 
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbname)
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", params.User, params.Password, params.Host, params.Port, params.DatabaseName)
 	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
 	depotDB := bun.NewDB(sqldb, pgdialect.New())
+	return depotDB
+}
 
-	// debug: log all queries
-	depotDB.AddQueryHook(bundebug.NewQueryHook(
+// EnableDebugLogs logs all database queries to the console
+func EnableDebugLogs(db *bun.DB) {
+	db.AddQueryHook(bundebug.NewQueryHook(
 		bundebug.WithVerbose(true),
 		bundebug.FromEnv("BUNDEBUG"),
 	))
-	return depotDB
 }
 
 // InsertNode adds a lightning node to the database
