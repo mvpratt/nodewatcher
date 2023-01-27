@@ -136,14 +136,11 @@ func verifyBackup(client lnrpc.LightningClient, snapshot lnrpc.ChanBackupSnapsho
 	return response
 }
 
-// Once a day, send a text message with lightning node status if SMS_ENABLE is true,
-func main() {
-	const statusPollInterval = 60 // 1 minute
-	const statusNotifyTime = 1    // when time = 01:00 UTC
+// Once a day, send a text message with lightning node status if SMS_ENABLE is true
+func healthMonitor(statusPollInterval time.Duration, client lnrpc.LightningClient) {
+	const statusNotifyTime = 1 // when time = 01:00 UTC
 
 	smsEnable := requireEnvVar("SMS_ENABLE")
-	macaroon := requireEnvVar("MACAROON_HEADER")
-
 	var smsTo, smsFrom string
 	var twilioClient *twilio.RestClient
 
@@ -157,6 +154,32 @@ func main() {
 		fmt.Println("\nWARNING: Text messages disabled. " +
 			"Set environment variable SMS_ENABLE to TRUE to enable SMS status updates")
 	}
+
+	smsAlreadySent := false
+
+	for true {
+		fmt.Println("\nChecking node status ...")
+
+		nodeInfo := getInfo(client)
+		textMsg := processGetInfoResponse(nodeInfo)
+		isTimeToSendStatus := (time.Now().Hour() == statusNotifyTime)
+
+		if smsEnable == "TRUE" && isTimeToSendStatus == true && smsAlreadySent == false {
+			sendSMS(twilioClient, textMsg, smsTo, smsFrom)
+			smsAlreadySent = true
+		}
+
+		// if time to send status window has passed, reset the smsAlreadySent boolean
+		if isTimeToSendStatus == false && smsAlreadySent == true {
+			smsAlreadySent = false
+		}
+		fmt.Println(textMsg)
+		time.Sleep(statusPollInterval * time.Second)
+	}
+}
+
+func main() {
+	macaroon := requireEnvVar("MACAROON_HEADER")
 
 	// connect to database
 	dbParams := &db.ConnectionParams{
@@ -185,40 +208,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	smsAlreadySent := false
+	nodeInfo := getInfo(client)
+
+	node := &db.Node{
+		ID:       0,
+		URL:      lnHost,
+		Alias:    nodeInfo.Alias,
+		Pubkey:   nodeInfo.IdentityPubkey,
+		Macaroon: macaroon,
+	}
+
+	err = db.InsertNode(node, depotDB)
+	if err != nil {
+		log.Print(err.Error())
+	}
+
+	const statusPollInterval = 60 // 1 minute
+	go healthMonitor(statusPollInterval, client)
 
 	for true {
-		fmt.Println("\nGetting node status ...")
-
-		nodeInfo := getInfo(client)
-
-		node := &db.Node{
-			ID:       0,
-			URL:      lnHost,
-			Alias:    nodeInfo.Alias,
-			Pubkey:   nodeInfo.IdentityPubkey,
-			Macaroon: macaroon,
-		}
-
-		err = db.InsertNode(node, depotDB)
-		if err != nil {
-			log.Print(err.Error())
-		}
-
-		textMsg := processGetInfoResponse(nodeInfo)
-		isTimeToSendStatus := (time.Now().Hour() == statusNotifyTime)
-
-		if smsEnable == "TRUE" && isTimeToSendStatus == true && smsAlreadySent == false {
-			sendSMS(twilioClient, textMsg, smsTo, smsFrom)
-			smsAlreadySent = true
-		}
-
-		// if time to send status window has passed, reset the smsAlreadySent boolean
-		if isTimeToSendStatus == false && smsAlreadySent == true {
-			smsAlreadySent = false
-		}
-		fmt.Println(textMsg)
-
+		fmt.Println("\nSaving channel backups ...")
 		err := saveChannelBackups(node, client, depotDB)
 		if err != nil {
 			log.Print(err.Error())
