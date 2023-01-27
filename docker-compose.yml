@@ -17,7 +17,7 @@ services:
     environment:
       POSTGRES_HOST: nodewatcher-db
       POSTGRES_PORT: 5432
-      POSTGRES_DB: depot
+      POSTGRES_DB: postgres
       POSTGRES_USER: nodewatcher
       POSTGRES_PASSWORD: password
       LND_TLS_CERT_PATH: /home/nodewatcher/creds/tls.cert
@@ -29,7 +29,7 @@ services:
     image: postgres:13.7-alpine
     restart: always
     environment:
-      POSTGRES_DB: depot
+      POSTGRES_DB: postgres
       POSTGRES_USER: nodewatcher
       POSTGRES_PASSWORD: password
     ports:

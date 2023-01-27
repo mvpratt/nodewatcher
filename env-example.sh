@@ -12,7 +12,7 @@ export TO_PHONE_NUMBER=5554443333
 
 # database credentials
 export POSTGRES_HOST=nodewatcher-db
-export POSTGRES_DB=depot
+export POSTGRES_DB=postgres
 export POSTGRES_PORT=5432
 export POSTGRES_USER=nodewatcher
 export POSTGRES_PASSWORD=password
