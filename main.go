@@ -40,10 +40,13 @@ func main() {
 
 	client, err := lndclient.NewBasicClient(lnHost, tlsPath, macDir, network, macDataOption)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err.Error())
 	}
 
-	nodeInfo := backup.GetInfo(client)
+	nodeInfo, err := backup.GetInfo(client)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 
 	node := &db.Node{
 		ID:       0,
@@ -55,7 +58,7 @@ func main() {
 
 	err = db.InsertNode(node, depotDB)
 	if err != nil {
-		log.Print(err.Error())
+		log.Fatal(err.Error())
 	}
 
 	const pollInterval = 60 // 1 minute

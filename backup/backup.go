@@ -14,9 +14,12 @@ import (
 
 // SaveChannelBackups ...
 func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client lnrpc.LightningClient, depotDB *bun.DB) {
-	for true {
+	for {
 		fmt.Println("\nSaving channel backups ...")
-		response := GetChannels(client)
+		response, err := GetChannels(client)
+		if err != nil {
+			log.Print(err.Error())
+		}
 		for _, item := range response.Channels {
 			err := db.InsertChannel(item, node.Pubkey, depotDB)
 			if err != nil {
@@ -25,7 +28,11 @@ func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client 
 		}
 
 		// static channel backup
-		chanBackups := GetChannelBackups(client)
+		chanBackups, err := GetChannelBackups(client)
+		if err != nil {
+			log.Print(err.Error())
+		}
+
 		for _, item := range chanBackups.SingleChanBackups.ChanBackups {
 			err := db.InsertChannelBackup(item, depotDB)
 			if err != nil {
@@ -34,7 +41,7 @@ func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client 
 		}
 
 		// mulitchannel backup
-		err := db.InsertMultiChannelBackup(chanBackups.MultiChanBackup, node.Pubkey, depotDB)
+		err = db.InsertMultiChannelBackup(chanBackups.MultiChanBackup, node.Pubkey, depotDB)
 		if err != nil {
 			log.Print(err.Error())
 		}
@@ -51,49 +58,30 @@ func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client 
 }
 
 // GetInfo ...
-func GetInfo(client lnrpc.LightningClient) *lnrpc.GetInfoResponse {
+func GetInfo(client lnrpc.LightningClient) (*lnrpc.GetInfoResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-
-	info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
-	if err != nil {
-		log.Print(err)
-	}
-	return info
+	return client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 }
 
 // GetChannels ...
-func GetChannels(client lnrpc.LightningClient) *lnrpc.ListChannelsResponse {
+func GetChannels(client lnrpc.LightningClient) (*lnrpc.ListChannelsResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-
-	channels, err := client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
-	if err != nil {
-		log.Print(err)
-	}
-	return channels
+	return client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
 }
 
 // GetChannelBackups ...
-func GetChannelBackups(client lnrpc.LightningClient) *lnrpc.ChanBackupSnapshot {
+func GetChannelBackups(client lnrpc.LightningClient) (*lnrpc.ChanBackupSnapshot, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
+	return client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
 
-	chanBackups, err := client.ExportAllChannelBackups(ctx, &lnrpc.ChanBackupExportRequest{})
-	if err != nil {
-		log.Print(err)
-	}
-	return chanBackups
 }
 
 // VerifyBackup ...
-func VerifyBackup(client lnrpc.LightningClient, snapshot lnrpc.ChanBackupSnapshot) *lnrpc.VerifyChanBackupResponse {
+func VerifyBackup(client lnrpc.LightningClient, snapshot lnrpc.ChanBackupSnapshot) (*lnrpc.VerifyChanBackupResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-
-	response, err := client.VerifyChanBackup(ctx, &snapshot)
-	if err != nil {
-		log.Print(err)
-	}
-	return response
+	return client.VerifyChanBackup(ctx, &snapshot)
 }

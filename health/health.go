@@ -30,20 +30,21 @@ func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string
 	return nil
 }
 
-func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
+func processGetInfoResponse(info *lnrpc.GetInfoResponse) (string, error) {
 	statusJSON, err := json.MarshalIndent(info, " ", "    ")
 	if err != nil {
+		return "", err
 		log.Print(err.Error())
 	}
 	statusString := string(statusJSON)
 
-	if info.SyncedToChain != true {
+	if !info.SyncedToChain {
 		return fmt.Sprintf("\n\nWARNING: Lightning node is not fully synced."+
-			"\nDetails: %s", statusString)
+			"\nDetails: %s", statusString), nil
 	}
-	if info.SyncedToGraph != true {
+	if !info.SyncedToGraph {
 		return fmt.Sprintf("\n\nWARNING: Network graph is not fully synced."+
-			"\nDetails: %s", statusString)
+			"\nDetails: %s", statusString), nil
 	}
 
 	// Check how long since last block. Convert unix time string into base10, 64-bit int
@@ -51,7 +52,7 @@ func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
 	timeSinceLastBlock := time.Now().Sub(time.Unix(lastBlockTime, 0))
 	return fmt.Sprintf(
 		"\nGood news, lightning node \"%s\" is fully synced!"+
-			"\nLast block received %s ago", info.Alias, timeSinceLastBlock)
+			"\nLast block received %s ago", info.Alias, timeSinceLastBlock), nil
 }
 
 // Monitor - Once a day, send a text message with lightning node status if SMS_ENABLE is true
@@ -75,23 +76,37 @@ func Monitor(statusPollInterval time.Duration, client lnrpc.LightningClient) {
 
 	smsAlreadySent := false
 
-	for true {
+	for {
 		fmt.Println("\nChecking node status ...")
+		time.Sleep(statusPollInterval * time.Second)
 
-		nodeInfo := backup.GetInfo(client)
-		textMsg := processGetInfoResponse(nodeInfo)
+		nodeInfo, err := backup.GetInfo(client)
+		if err != nil {
+			log.Print(err.Error())
+			continue // no point in processing info response
+		}
+
+		textMsg, err := processGetInfoResponse(nodeInfo)
+		if err != nil {
+			log.Print(err.Error())
+			continue // no point in processing info response
+		}
+
 		isTimeToSendStatus := (time.Now().Hour() == statusNotifyTime)
 
-		if smsEnable == "TRUE" && isTimeToSendStatus == true && smsAlreadySent == false {
-			sendSMS(twilioClient, textMsg, smsTo, smsFrom)
-			smsAlreadySent = true
+		if smsEnable == "TRUE" && isTimeToSendStatus && !smsAlreadySent {
+			err := sendSMS(twilioClient, textMsg, smsTo, smsFrom)
+			if err != nil {
+				log.Print(err.Error())
+			} else {
+				smsAlreadySent = true
+			}
 		}
 
 		// if time to send status window has passed, reset the smsAlreadySent boolean
-		if isTimeToSendStatus == false && smsAlreadySent == true {
+		if !isTimeToSendStatus && smsAlreadySent {
 			smsAlreadySent = false
 		}
 		fmt.Println(textMsg)
-		time.Sleep(statusPollInterval * time.Second)
 	}
 }
