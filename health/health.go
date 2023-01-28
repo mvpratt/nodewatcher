@@ -5,24 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/mvpratt/nodewatcher/backup"
+	"github.com/mvpratt/nodewatcher/util"
 	twilio "github.com/twilio/twilio-go"
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 )
-
-// Exit if environment variable not defined
-func requireEnvVar(varName string) string {
-	env := os.Getenv(varName)
-	if env == "" {
-		log.Fatalf("\nERROR: %s environment variable must be set.", varName)
-	}
-	return env
-}
 
 // Send a text message
 func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string) error {
@@ -67,15 +58,15 @@ func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
 func Monitor(statusPollInterval time.Duration, client lnrpc.LightningClient) {
 	const statusNotifyTime = 1 // when time = 01:00 UTC
 
-	smsEnable := requireEnvVar("SMS_ENABLE")
+	smsEnable := util.RequireEnvVar("SMS_ENABLE")
 	var smsTo, smsFrom string
 	var twilioClient *twilio.RestClient
 
 	if smsEnable == "TRUE" {
-		smsTo = requireEnvVar("TO_PHONE_NUMBER")
-		smsFrom = requireEnvVar("TWILIO_PHONE_NUMBER")
-		_ = requireEnvVar("TWILIO_ACCOUNT_SID")
-		_ = requireEnvVar("TWILIO_AUTH_TOKEN")
+		smsTo = util.RequireEnvVar("TO_PHONE_NUMBER")
+		smsFrom = util.RequireEnvVar("TWILIO_PHONE_NUMBER")
+		_ = util.RequireEnvVar("TWILIO_ACCOUNT_SID")
+		_ = util.RequireEnvVar("TWILIO_AUTH_TOKEN")
 		twilioClient = twilio.NewRestClient()
 	} else {
 		fmt.Println("\nWARNING: Text messages disabled. " +

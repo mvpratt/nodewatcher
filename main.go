@@ -2,33 +2,24 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/lightninglabs/lndclient"
 	"github.com/mvpratt/nodewatcher/backup"
 	"github.com/mvpratt/nodewatcher/db"
 	"github.com/mvpratt/nodewatcher/health"
+	"github.com/mvpratt/nodewatcher/util"
 )
 
-// Exit if environment variable not defined
-func requireEnvVar(varName string) string {
-	env := os.Getenv(varName)
-	if env == "" {
-		log.Fatalf("\nERROR: %s environment variable must be set.", varName)
-	}
-	return env
-}
-
 func main() {
-	macaroon := requireEnvVar("MACAROON_HEADER")
+	macaroon := util.RequireEnvVar("MACAROON_HEADER")
 
 	// connect to database
 	dbParams := &db.ConnectionParams{
-		Host:         requireEnvVar("POSTGRES_HOST"),
-		Port:         requireEnvVar("POSTGRES_PORT"),
-		User:         requireEnvVar("POSTGRES_USER"),
-		Password:     requireEnvVar("POSTGRES_PASSWORD"),
-		DatabaseName: requireEnvVar("POSTGRES_DB"),
+		Host:         util.RequireEnvVar("POSTGRES_HOST"),
+		Port:         util.RequireEnvVar("POSTGRES_PORT"),
+		User:         util.RequireEnvVar("POSTGRES_USER"),
+		Password:     util.RequireEnvVar("POSTGRES_PASSWORD"),
+		DatabaseName: util.RequireEnvVar("POSTGRES_DB"),
 	}
 
 	depotDB := db.ConnectToDB(dbParams)
@@ -37,8 +28,8 @@ func main() {
 
 	// connect to node via grpc
 	var (
-		lnHost        = requireEnvVar("LN_NODE_URL")
-		tlsPath       = requireEnvVar("LND_TLS_CERT_PATH")
+		lnHost        = util.RequireEnvVar("LN_NODE_URL")
+		tlsPath       = util.RequireEnvVar("LND_TLS_CERT_PATH")
 		macDir        = ""
 		network       = "mainnet"
 		macDataOption = lndclient.MacaroonData(macaroon)
