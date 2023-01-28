@@ -1,4 +1,4 @@
-// Package backup ...
+// Package backup saves LND static channel backups to a PostgreSQL database
 package backup
 
 import (

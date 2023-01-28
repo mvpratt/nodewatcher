@@ -10,6 +10,9 @@ import (
 	"github.com/mvpratt/nodewatcher/util"
 )
 
+// Nodewatcher runs two processes:
+//  1. Checks the health of an LND node and sends an SMS once a day with the status
+//  2. Saves LND static channel backups to a PostgreSQL database once per minute
 func main() {
 	macaroon := util.RequireEnvVar("MACAROON_HEADER")
 
@@ -55,11 +58,11 @@ func main() {
 		log.Print(err.Error())
 	}
 
-	const statusPollInterval = 60 // 1 minute
+	const pollInterval = 60 // 1 minute
 
 	done := make(chan bool)
-	go health.Monitor(statusPollInterval, client)
-	go backup.SaveChannelBackups(statusPollInterval, node, client, depotDB)
+	go health.Monitor(pollInterval, client)
+	go backup.SaveChannelBackups(pollInterval, node, client, depotDB)
 
 	<-done // Block forever
 }

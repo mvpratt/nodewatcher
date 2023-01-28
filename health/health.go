@@ -1,4 +1,4 @@
-// Package health ...
+// Package health provides functions to check the status of an LND lightning node
 package health
 
 import (
