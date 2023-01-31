@@ -48,7 +48,7 @@ type Channel struct {
 	ID          int64  `bun:"id,pk,autoincrement"`
 	FundingTxid string `bun:"funding_txid"`
 	OutputIndex int64  `bun:"output_index"`
-	NodeID      int64  `bun:node_id`
+	NodeID      int64  `bun:"node_id"`
 }
 
 // ChannelBackup is an encrypted static channel backup of a single lightning channel
@@ -69,7 +69,7 @@ type MultiChannelBackup struct {
 	ID        int64     `bun:"id,pk,autoincrement"`
 	CreatedAt time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp"`
 	Backup    string    `bun:"backup"`
-	NodeID    int64     `bun:node_id`
+	NodeID    int64     `bun:"node_id"`
 }
 
 // RunMigrations gets all *.sql files from /migrations and runs them to create tables and constraints
@@ -90,9 +90,9 @@ func RunMigrations(db *bun.DB) error {
 		return err
 	}
 	if group.IsZero() {
-		fmt.Printf("there are no new migrations to run (database is up to date)\n")
+		log.Printf("there are no new migrations to run (database is up to date)\n")
 	}
-	fmt.Printf("migrated to %s\n", group)
+	log.Printf("migrated to %s\n", group)
 	return nil
 }
 
@@ -212,7 +212,7 @@ func InsertMultiChannelBackup(backup *lnrpc.MultiChanBackup, pubkey string, db *
 
 	nodeFromDB, err := FindNodeByPubkey(pubkey, db)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	multiBackup := &MultiChannelBackup{
@@ -228,17 +228,18 @@ func InsertMultiChannelBackup(backup *lnrpc.MultiChanBackup, pubkey string, db *
 	return err
 }
 
-// FindMultiChannelBackupByPubkey gets the most recent multi channel backup from the db
+// FindMultiChannelBackupByPubkey gets the most recent multi-channel backup from the db
 func FindMultiChannelBackupByPubkey(pubkey string, db *bun.DB) (MultiChannelBackup, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	var mc MultiChannelBackup
+
 	nodeFromDB, err := FindNodeByPubkey(pubkey, db)
 	if err != nil {
-		log.Fatal(err)
+		return mc, err
 	}
 
-	var mc MultiChannelBackup
 	err = db.NewSelect().
 		Model(&mc).
 		Where("node_id = ?", nodeFromDB.ID).
