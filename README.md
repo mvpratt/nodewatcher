@@ -31,9 +31,12 @@ cp env-sample.sh env.sh
 (make applicable changes)
 source env.sh
 ```
+## LND credentials
 
-MACAROON_HEADER should be readonly.macaroon from
-/lnd/data/chain/bitcoin/regtest/readonly.macaroon
+1) MACAROON_HEADER environment variable should be the hex contents of the file
+`/lnd/data/chain/bitcoin/regtest/readonly.macaroon`
+
+2) The file `tls.cert` from directory ----tbd---- should be placed in `/certs`
 
 ## Build and Run locally
 
