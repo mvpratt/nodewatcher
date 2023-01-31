@@ -3,6 +3,8 @@
 .PHONY:lint
 lint:
 	golint ./...
+	go vet ./...
+	shadow ./...
 
 .PHONY:build
 build: lint
@@ -11,6 +13,10 @@ build: lint
 .PHONY:run
 run:
 	./nw
+
+.PHONY:test
+test:
+	go test ./...
 
 .PHONY:docker-build
 docker-build: lint
