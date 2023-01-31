@@ -57,7 +57,7 @@ func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client 
 	}
 }
 
-// GetInfo ...
+// GetInfo calls the get info RPC on the client lightning node
 func GetInfo(client lnrpc.LightningClient) (*lnrpc.GetInfoResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -80,8 +80,8 @@ func GetChannelBackups(client lnrpc.LightningClient) (*lnrpc.ChanBackupSnapshot,
 }
 
 // VerifyBackup ...
-func VerifyBackup(client lnrpc.LightningClient, snapshot lnrpc.ChanBackupSnapshot) (*lnrpc.VerifyChanBackupResponse, error) {
+func VerifyBackup(client lnrpc.LightningClient, snapshot *lnrpc.ChanBackupSnapshot) (*lnrpc.VerifyChanBackupResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	return client.VerifyChanBackup(ctx, &snapshot)
+	return client.VerifyChanBackup(ctx, snapshot)
 }
