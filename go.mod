@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/lightninglabs/lndclient v0.15.4-1
-	github.com/lightningnetwork/lnd v0.15.5-beta
 	github.com/twilio/twilio-go v1.2.1
 	github.com/uptrace/bun v1.1.10
 	github.com/uptrace/bun/dialect/pgdialect v1.1.10
@@ -77,6 +76,7 @@ require (
 	github.com/lightninglabs/gozmq v0.0.0-20191113021534-d20a764486bf // indirect
 	github.com/lightninglabs/neutrino v0.14.2 // indirect
 	github.com/lightningnetwork/lightning-onion v1.0.2-0.20220211021909-bb84a1ccb0c5 // indirect
+	github.com/lightningnetwork/lnd v0.15.5-beta // indirect
 	github.com/lightningnetwork/lnd/clock v1.1.0 // indirect
 	github.com/lightningnetwork/lnd/healthcheck v1.2.2 // indirect
 	github.com/lightningnetwork/lnd/kvdb v1.3.1 // indirect
