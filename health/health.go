@@ -30,8 +30,6 @@ func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string
 }
 
 func processGetInfoResponse(info *lndclient.Info) (string, error) {
-	// log.Println("processGetInfo()")
-	// log.Println(info)
 	statusJSON, err := json.MarshalIndent(info, " ", "    ")
 	if err != nil {
 		log.Print(err.Error())
