@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/lndclient"
+	"github.com/mvpratt/nodewatcher/backup"
 	"github.com/mvpratt/nodewatcher/db"
 	"github.com/mvpratt/nodewatcher/health"
 	"github.com/mvpratt/nodewatcher/util"
@@ -67,7 +68,6 @@ func main() {
 		Pubkey:   hex.EncodeToString(nodeInfo.IdentityPubkey[:]),
 		Macaroon: macaroon,
 	}
-	log.Printf("\nnode: %#v", node)
 
 	err = db.InsertNode(node, depotDB)
 	if err != nil {
@@ -78,7 +78,7 @@ func main() {
 
 	done := make(chan bool)
 	go health.Monitor(pollInterval, services.LndServices.Client)
-	//go backup.SaveChannelBackups(pollInterval, node, client, depotDB)
+	go backup.SaveChannelBackups(pollInterval, node, services.LndServices.Client, depotDB)
 
 	<-done // Block forever
 }

@@ -5,14 +5,13 @@ package db
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightninglabs/lndclient"
 	"github.com/mvpratt/nodewatcher/db/migrations"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
@@ -141,18 +140,21 @@ func FindNodeByPubkey(pubkey string, db *bun.DB) (Node, error) {
 }
 
 // InsertChannel adds a channel to the db
-func InsertChannel(channel *lnrpc.Channel, pubkey string, db *bun.DB) error {
+func InsertChannel(channel lndclient.ChannelInfo, pubkey string, db *bun.DB) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	nodeFromDB, err := FindNodeByPubkey(pubkey, db)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	splits := strings.Split(channel.ChannelPoint, ":")
 	txid := splits[0]
 	output, err := strconv.ParseInt(splits[1], 10, 32)
+	if err != nil {
+		return err
+	}
 
 	mychan := &Channel{
 		ID:          0,
@@ -183,30 +185,8 @@ func FindChannelByNodeID(id int64, db *bun.DB) (Channel, error) {
 	return c, err
 }
 
-// InsertChannelBackup adds a static channel backup to the database
-func InsertChannelBackup(backup *lnrpc.ChannelBackup, db *bun.DB) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	fundingTxidBytes := backup.ChanPoint.FundingTxid.(*lnrpc.ChannelPoint_FundingTxidBytes).FundingTxidBytes
-
-	channelBackup := &ChannelBackup{
-		ID:               0,
-		FundingTxidBytes: base64.StdEncoding.EncodeToString(fundingTxidBytes),
-		OutputIndex:      int64(backup.ChanPoint.OutputIndex),
-		Backup:           base64.StdEncoding.EncodeToString(backup.ChanBackup),
-		CreatedAt:        time.Now(),
-	}
-
-	_, err := db.NewInsert().
-		Model(channelBackup).
-		Exec(ctx)
-
-	return err
-}
-
 // InsertMultiChannelBackup adds a static channel backup of all channels to the database
-func InsertMultiChannelBackup(backup *lnrpc.MultiChanBackup, pubkey string, db *bun.DB) error {
+func InsertMultiChannelBackup(backup string, pubkey string, db *bun.DB) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -217,7 +197,7 @@ func InsertMultiChannelBackup(backup *lnrpc.MultiChanBackup, pubkey string, db *
 
 	multiBackup := &MultiChannelBackup{
 		ID:        0,
-		Backup:    base64.StdEncoding.EncodeToString(backup.MultiChanBackup),
+		Backup:    backup,
 		NodeID:    nodeFromDB.ID,
 		CreatedAt: time.Now(),
 	}
