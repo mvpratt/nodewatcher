@@ -2,17 +2,16 @@
 package health
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
-	"github.com/mvpratt/nodewatcher/backup"
+	"github.com/lightninglabs/lndclient"
 	"github.com/mvpratt/nodewatcher/util"
 	twilio "github.com/twilio/twilio-go"
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
-
-	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
 // Send a text message
@@ -30,7 +29,9 @@ func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string
 	return nil
 }
 
-func processGetInfoResponse(info *lnrpc.GetInfoResponse) (string, error) {
+func processGetInfoResponse(info *lndclient.Info) (string, error) {
+	// log.Println("processGetInfo()")
+	// log.Println(info)
 	statusJSON, err := json.MarshalIndent(info, " ", "    ")
 	if err != nil {
 		log.Print(err.Error())
@@ -48,15 +49,15 @@ func processGetInfoResponse(info *lnrpc.GetInfoResponse) (string, error) {
 	}
 
 	// Check how long since last block. Convert unix time string into base10, 64-bit int
-	lastBlockTime := info.BestHeaderTimestamp
-	timeSinceLastBlock := time.Now().Sub(time.Unix(lastBlockTime, 0))
+	lastBlockTime := info.BestHeaderTimeStamp
+	timeSinceLastBlock := time.Since(lastBlockTime)
 	return fmt.Sprintf(
 		"\nGood news, lightning node \"%s\" is fully synced!"+
 			"\nLast block received %s ago", info.Alias, timeSinceLastBlock), nil
 }
 
 // Monitor - Once a day, send a text message with lightning node status if SMS_ENABLE is true
-func Monitor(statusPollInterval time.Duration, client lnrpc.LightningClient) {
+func Monitor(statusPollInterval time.Duration, client lndclient.LightningClient) {
 	const statusNotifyTime = 1 // when time = 01:00 UTC
 
 	smsEnable := util.RequireEnvVar("SMS_ENABLE")
@@ -78,11 +79,12 @@ func Monitor(statusPollInterval time.Duration, client lnrpc.LightningClient) {
 
 	for {
 		fmt.Println("\nChecking node status ...")
-		time.Sleep(statusPollInterval * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel() // todo - defer will never run (endless loop)
 
-		nodeInfo, err := backup.GetInfo(client)
+		nodeInfo, err := client.GetInfo(ctx)
 		if err != nil {
-			log.Print(err.Error())
+			log.Fatal(err.Error())
 			continue // no point in processing info response
 		}
 
@@ -108,5 +110,6 @@ func Monitor(statusPollInterval time.Duration, client lnrpc.LightningClient) {
 			smsAlreadySent = false
 		}
 		fmt.Println(textMsg)
+		time.Sleep(statusPollInterval * time.Second)
 	}
 }
