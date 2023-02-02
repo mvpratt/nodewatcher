@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"log"
-	"time"
 
 	"github.com/lightninglabs/lndclient"
 	"github.com/mvpratt/nodewatcher/backup"
@@ -18,7 +17,6 @@ import (
 //  2. Saves LND static channel backups to a PostgreSQL database once per minute
 func main() {
 
-	// connect to database
 	dbParams := &db.ConnectionParams{
 		Host:         util.RequireEnvVar("POSTGRES_HOST"),
 		Port:         util.RequireEnvVar("POSTGRES_PORT"),
@@ -27,19 +25,19 @@ func main() {
 		DatabaseName: util.RequireEnvVar("POSTGRES_DB"),
 	}
 
+	// connect to database
 	depotDB := db.ConnectToDB(dbParams)
 	db.EnableDebugLogs(depotDB)
 	db.RunMigrations(depotDB)
 
-	// connect to node via grpc
 	var (
 		macaroon = util.RequireEnvVar("MACAROON_HEADER")
-		lnHost   = util.RequireEnvVar("LN_NODE_URL")
+		lndHost  = util.RequireEnvVar("LN_NODE_URL")
 		tlsPath  = util.RequireEnvVar("LND_TLS_CERT_PATH")
 	)
 
-	config := &lndclient.LndServicesConfig{
-		LndAddress:            lnHost,
+	lndConfig := &lndclient.LndServicesConfig{
+		LndAddress:            lndHost,
 		Network:               lndclient.NetworkMainnet,
 		CustomMacaroonHex:     macaroon,
 		TLSPath:               tlsPath,
@@ -48,22 +46,26 @@ func main() {
 		BlockUntilUnlocked:    false,
 	}
 
-	services, err := lndclient.NewLndServices(config)
+	//sim := util.RequireEnvVar("SIM")
+	// if simulation ...
+	// lndConfig.Insecure = true
+	// lndConfig.TLSPath = ""
+	// lndConfig.Network = lndclient.NetworkRegtest
+
+	// connect to node via grpc
+	services, err := lndclient.NewLndServices(lndConfig)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	nodeInfo, err := services.LndServices.Client.GetInfo(ctx)
+	nodeInfo, err := services.LndServices.Client.GetInfo(context.Background())
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
 	node := &db.Node{
 		ID:       0,
-		URL:      lnHost,
+		URL:      lndHost,
 		Alias:    nodeInfo.Alias,
 		Pubkey:   hex.EncodeToString(nodeInfo.IdentityPubkey[:]),
 		Macaroon: macaroon,

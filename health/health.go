@@ -25,7 +25,7 @@ func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string
 	if err != nil {
 		return fmt.Errorf("%s", err.Error())
 	}
-	fmt.Println("\nSMS sent successfully!")
+	log.Println("\nSMS sent successfully!")
 	return nil
 }
 
@@ -69,20 +69,20 @@ func Monitor(statusPollInterval time.Duration, client lndclient.LightningClient)
 		_ = util.RequireEnvVar("TWILIO_AUTH_TOKEN")
 		twilioClient = twilio.NewRestClient()
 	} else {
-		fmt.Println("\nWARNING: Text messages disabled. " +
+		log.Println("\nWARNING: Text messages disabled. " +
 			"Set environment variable SMS_ENABLE to TRUE to enable SMS status updates")
 	}
 
 	smsAlreadySent := false
 
 	for {
-		fmt.Println("\nChecking node status ...")
+		log.Println("\nChecking node status ...")
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel() // todo - defer will never run (endless loop)
 
 		nodeInfo, err := client.GetInfo(ctx)
 		if err != nil {
-			log.Fatal(err.Error())
+			log.Print(err.Error())
 			continue // no point in processing info response
 		}
 
@@ -107,7 +107,7 @@ func Monitor(statusPollInterval time.Duration, client lndclient.LightningClient)
 		if !isTimeToSendStatus && smsAlreadySent {
 			smsAlreadySent = false
 		}
-		fmt.Println(textMsg)
+		log.Println(textMsg)
 		time.Sleep(statusPollInterval * time.Second)
 	}
 }
