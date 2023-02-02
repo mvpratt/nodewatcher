@@ -3,25 +3,6 @@ networks:
   lnnet:
 
 services:
-  nodewatcher:
-    container_name: nodewatcher
-    image: nodewatcher:latest
-    networks:
-      - lnnet
-    restart: always
-    links:
-      - postgres
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      POSTGRES_HOST: nodewatcher-db
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: postgres
-      POSTGRES_USER: nodewatcher
-      POSTGRES_PASSWORD: password
-      LND_TLS_CERT_PATH: /home/nodewatcher/creds/tls.cert
-
   postgres:
     container_name: nodewatcher-db
     networks:
@@ -39,3 +20,38 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  Alice:
+    container_name: Alice
+    image: wt:latest
+    networks:
+      - lnnet
+    expose:
+      - "9735"
+    ports:
+      - "10010:10009"
+    restart: always
+
+  Bob:
+    container_name: Bob
+    image: wt:latest
+    networks:
+      - lnnet
+    expose:
+      - "9735"
+    ports:
+      - "10011:10009"
+    restart: always
+
+  bitcoind:
+    container_name: bitcoind
+    build:
+        context: bitcoind
+    image: lnbook/bitcoind:latest
+    networks:
+      - lnnet
+    expose:
+      - "18443"
+      - "12005"
+      - "12006"
+    restart: always
