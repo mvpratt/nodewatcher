@@ -1,4 +1,4 @@
-nw
-env.sh
-nodewatcher-dev.md
+cmd/nw/nw
+env*
 creds/tls.cert
+draft
