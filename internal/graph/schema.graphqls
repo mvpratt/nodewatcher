@@ -2,6 +2,22 @@
 #
 # https://gqlgen.com/getting-started/
 
+type Node {
+  id:       Int!
+  url:      String!
+  alias:     String!
+  pubkey:   String!
+  macaroon: String!
+}
+
+input NewNode {
+  id: Int!
+  url: String!
+  alias: String!
+  pubkey: String!
+  macaroon: String!
+}
+
 type Todo {
   id: ID!
   text: String!
@@ -16,6 +32,7 @@ type User {
 
 type Query {
   todos: [Todo!]!
+  nodes: [Node!]!
 }
 
 input NewTodo {
@@ -25,4 +42,5 @@ input NewTodo {
 
 type Mutation {
   createTodo(input: NewTodo!): Todo!
+  createNode(input: NewNode!): Node!
 }

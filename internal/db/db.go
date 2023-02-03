@@ -4,6 +4,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +12,26 @@ import (
 	"github.com/lightninglabs/lndclient"
 	"github.com/uptrace/bun"
 )
+
+// NodeIF is an interface
+type NodeIF interface {
+	Create(id int64, url string, alias string, pubkey string, macaroon string)
+}
+
+// NodeImpl is a node
+type NodeImpl struct {
+	ID       int64
+	URL      string
+	Alias    string
+	Pubkey   string
+	Macaroon string
+}
+
+// Create is a function to create a new node
+func (n *NodeImpl) Create(id int64, url string, alias string, pubkey string, macaroon string) {
+	fmt.Printf("I have a node: %s\n", n.Alias)
+	panic("oops!")
+}
 
 // InsertNode adds a lightning node to the database
 func InsertNode(node *Node, db *bun.DB) error {

@@ -24,9 +24,28 @@ func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) 
 	return todo, nil
 }
 
+// CreateNode is the resolver for the createNode field.
+func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) (*model.Node, error) {
+	node := &model.Node{
+		ID:       input.ID,
+		URL:      input.URL,
+		Alias:    input.Alias,
+		Pubkey:   input.Pubkey,
+		Macaroon: input.Macaroon,
+	}
+	r.nodes = append(r.nodes, node)
+	return node, nil
+}
+
 // Todos is the resolver for the todos field.
 func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
 	return r.todos, nil
+}
+
+// Nodes is the resolver for the nodes field.
+func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
+	//node, err := db.FindNodeByPubkey("026272077362d09a1296bd90c1714e21a5f978558625901afdf03bf9421e8a7d0d", database)
+	return r.nodes, nil
 }
 
 // User is the resolver for the user field.
