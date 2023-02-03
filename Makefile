@@ -8,6 +8,7 @@ lint:
 .PHONY:build
 build: lint
 	cd cmd/nw && go build -o nw
+	cd cmd/nwapi && go build -o server
 
 .PHONY:run
 run:
@@ -16,6 +17,10 @@ run:
 .PHONY:test
 test:
 	go test ./...
+
+.PHONY: gql
+gql:
+	go generate ./...
 
 .PHONY:docker-build
 docker-build: lint
