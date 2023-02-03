@@ -6,10 +6,10 @@ import (
 	"log"
 
 	"github.com/lightninglabs/lndclient"
-	"github.com/mvpratt/nodewatcher/backup"
-	"github.com/mvpratt/nodewatcher/db"
-	"github.com/mvpratt/nodewatcher/health"
-	"github.com/mvpratt/nodewatcher/util"
+	"github.com/mvpratt/nodewatcher/internal/backup"
+	"github.com/mvpratt/nodewatcher/internal/db"
+	"github.com/mvpratt/nodewatcher/internal/health"
+	"github.com/mvpratt/nodewatcher/internal/util"
 )
 
 // Nodewatcher runs two processes:

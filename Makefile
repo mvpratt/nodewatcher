@@ -6,12 +6,12 @@ lint:
 	go vet ./...
 
 .PHONY:build
-build:
-	go build -o nw
+build: lint
+	cd cmd/nw && go build -o nw
 
 .PHONY:run
 run:
-	./nw
+	cd cmd/nw && ./nw
 
 .PHONY:test
 test:

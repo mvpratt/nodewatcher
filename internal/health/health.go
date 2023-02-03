@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/lndclient"
-	"github.com/mvpratt/nodewatcher/util"
+	"github.com/mvpratt/nodewatcher/internal/util"
 	twilio "github.com/twilio/twilio-go"
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )

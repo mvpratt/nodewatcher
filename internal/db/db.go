@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/lndclient"
-	"github.com/mvpratt/nodewatcher/db/migrations"
+	"github.com/mvpratt/nodewatcher/internal/db/migrations"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
@@ -141,6 +141,8 @@ func FindNodeByPubkey(pubkey string, db *bun.DB) (Node, error) {
 
 // InsertChannel adds a channel to the db
 func InsertChannel(channel lndclient.ChannelInfo, pubkey string, db *bun.DB) error {
+	//log.Printf("\npubkey: %s", pubkey)
+	//log.Printf("\nchannelpoint: %s", channel.ChannelPoint)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 

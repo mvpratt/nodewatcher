@@ -1,0 +1,94 @@
+// Package backup saves LND static channel backups to a PostgreSQL database
+package backup
+
+import (
+	"context"
+	"encoding/base64"
+	"log"
+	"time"
+
+	"github.com/lightninglabs/lndclient"
+	"github.com/mvpratt/nodewatcher/db"
+	"github.com/uptrace/bun"
+)
+
+// func subscribeChannelBackups(ctx context.Context, client lndclient.LightningClient) error {
+// 	log.Print("Subscribing to channel backups")
+
+// 	// get a channel of backup snapshots from the node
+// 	chanSnaps, chanErrs, err := client.SubscribeChannelBackups(ctx)
+// 	if err != nil {
+// 		log.Print(err.Error())
+// 	}
+
+// 	// run a goroutine to log any errors to the console
+// 	go func() {
+// 		log.Println("waiting for errors ...")
+// 		for {
+// 			err, ok := <-chanErrs
+// 			log.Printf("got an error, channel open:%t", ok)
+// 			log.Print(err.Error())
+// 			//return
+// 		}
+// 	}()
+
+// 	// run a goroutine to log any new snapshots to the console
+// 	go func() {
+// 		//var snap lnrpc.ChanBackupSnapshot
+// 		log.Println("waiting for snaps ...")
+// 		for {
+// 			snap := <-chanSnaps
+// 			log.Printf("got a snap %#v, channel open:", snap)
+// 			//return
+// 		}
+// 	}()
+// 	return nil
+// }
+
+// SaveChannelBackups saves LND static channel backup to the database every backupInterval
+func SaveChannelBackups(backupInterval time.Duration, node *db.Node, client lndclient.LightningClient, depotDB *bun.DB) {
+	// err := subscribeChannelBackups(ctx, client)
+	// if err != nil {
+	// 	log.Print(err.Error())
+	// }
+
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(30)*time.Second)
+		defer cancel()
+		log.Print("\nPolling static channel backup ...")
+
+		channels, err := client.ListChannels(ctx, true, false)
+		if err != nil {
+			log.Print(err.Error())
+			//continue
+		}
+		for _, item := range channels {
+			err := db.InsertChannel(item, node.Pubkey, depotDB)
+			if err != nil {
+				log.Print(err.Error())
+			}
+		}
+
+		// static channel backup (multi)
+		chanBackups, err := client.ChannelBackups(ctx)
+		if err != nil {
+			log.Print(err.Error())
+			//continue
+		}
+
+		err = db.InsertMultiChannelBackup(base64.StdEncoding.EncodeToString(chanBackups), node.Pubkey, depotDB)
+		if err != nil {
+			log.Print(err.Error())
+			//continue
+		}
+
+		// WIP
+		// get backup from db
+		// multiBackup, err := db.FindMultiChannelBackupByPubkey(node.Pubkey, depotDB)
+		// if err != nil {
+		// 	log.Print(err.Error())
+		// }
+		log.Print("sleep 1 min")
+		time.Sleep(backupInterval * time.Second)
+	}
+}

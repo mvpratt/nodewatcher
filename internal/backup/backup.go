@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/lndclient"
-	"github.com/mvpratt/nodewatcher/db"
+	"github.com/mvpratt/nodewatcher/internal/db"
 	"github.com/uptrace/bun"
 )
 
