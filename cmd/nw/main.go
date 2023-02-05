@@ -25,10 +25,11 @@ func main() {
 		DatabaseName: util.RequireEnvVar("POSTGRES_DB"),
 	}
 
+	nwDB := db.NodewatcherDB{}
 	// connect to database
-	depotDB := db.ConnectToDB(dbParams)
-	db.EnableDebugLogs(depotDB)
-	db.RunMigrations(depotDB)
+	nwDB.ConnectToDB(dbParams)
+	nwDB.EnableDebugLogs()
+	nwDB.RunMigrations()
 
 	var (
 		macaroon = util.RequireEnvVar("MACAROON_HEADER")
@@ -71,7 +72,7 @@ func main() {
 		Macaroon: macaroon,
 	}
 
-	err = db.InsertNode(node, depotDB)
+	err = nwDB.InsertNode(node)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -80,7 +81,7 @@ func main() {
 
 	done := make(chan bool)
 	go health.Monitor(pollInterval, services.LndServices.Client)
-	go backup.SaveChannelBackups(pollInterval, node, services.LndServices.Client, depotDB)
+	go backup.SaveChannelBackups(pollInterval, node, services.LndServices.Client, nwDB)
 
 	<-done // Block forever
 }

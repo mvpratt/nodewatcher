@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/lightninglabs/lndclient"
-	"github.com/uptrace/bun"
 )
 
 // NodeIF is an interface
@@ -34,11 +33,11 @@ func (n *NodeImpl) Create(id int64, url string, alias string, pubkey string, mac
 }
 
 // InsertNode adds a lightning node to the database
-func InsertNode(node *Node, db *bun.DB) error {
+func (n *NodewatcherDB) InsertNode(node *Node) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	_, err := db.NewInsert().
+	_, err := n.db.NewInsert().
 		Model(node).
 		On("conflict (\"pubkey\") do nothing").
 		Exec(ctx)
@@ -47,12 +46,12 @@ func InsertNode(node *Node, db *bun.DB) error {
 }
 
 // FindNodeByPubkey gets node from the db
-func FindNodeByPubkey(pubkey string, db *bun.DB) (Node, error) {
+func (n *NodewatcherDB) FindNodeByPubkey(pubkey string) (Node, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	var node Node
-	err := db.NewSelect().
+	err := n.db.NewSelect().
 		Model(&node).
 		Where("pubkey = ?", pubkey).
 		Scan(ctx, &node)
@@ -61,13 +60,13 @@ func FindNodeByPubkey(pubkey string, db *bun.DB) (Node, error) {
 }
 
 // InsertChannel adds a channel to the db
-func InsertChannel(channel lndclient.ChannelInfo, pubkey string, db *bun.DB) error {
+func (n *NodewatcherDB) InsertChannel(channel lndclient.ChannelInfo, pubkey string) error {
 	//log.Printf("\npubkey: %s", pubkey)
 	//log.Printf("\nchannelpoint: %s", channel.ChannelPoint)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	nodeFromDB, err := FindNodeByPubkey(pubkey, db)
+	nodeFromDB, err := n.FindNodeByPubkey(pubkey)
 	if err != nil {
 		return err
 	}
@@ -86,7 +85,7 @@ func InsertChannel(channel lndclient.ChannelInfo, pubkey string, db *bun.DB) err
 		NodeID:      nodeFromDB.ID,
 	}
 
-	_, err = db.NewInsert().
+	_, err = n.db.NewInsert().
 		Model(mychan).
 		On("conflict (\"funding_txid\",\"output_index\") do nothing").
 		Exec(ctx)
@@ -95,12 +94,12 @@ func InsertChannel(channel lndclient.ChannelInfo, pubkey string, db *bun.DB) err
 }
 
 // FindChannelByNodeID gets channel from the db
-func FindChannelByNodeID(id int64, db *bun.DB) (Channel, error) {
+func (n *NodewatcherDB) FindChannelByNodeID(id int64) (Channel, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	var c Channel
-	err := db.NewSelect().
+	err := n.db.NewSelect().
 		Model(&c).
 		Where("node_id = ?", id).
 		Scan(ctx, &c)
@@ -109,11 +108,11 @@ func FindChannelByNodeID(id int64, db *bun.DB) (Channel, error) {
 }
 
 // InsertMultiChannelBackup adds a static channel backup of all channels to the database
-func InsertMultiChannelBackup(backup string, pubkey string, db *bun.DB) error {
+func (n *NodewatcherDB) InsertMultiChannelBackup(backup string, pubkey string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	nodeFromDB, err := FindNodeByPubkey(pubkey, db)
+	nodeFromDB, err := n.FindNodeByPubkey(pubkey)
 	if err != nil {
 		return err
 	}
@@ -124,7 +123,7 @@ func InsertMultiChannelBackup(backup string, pubkey string, db *bun.DB) error {
 		NodeID:    nodeFromDB.ID,
 		CreatedAt: time.Now(),
 	}
-	_, err = db.NewInsert().
+	_, err = n.db.NewInsert().
 		Model(multiBackup).
 		Exec(ctx)
 
@@ -132,18 +131,18 @@ func InsertMultiChannelBackup(backup string, pubkey string, db *bun.DB) error {
 }
 
 // FindMultiChannelBackupByPubkey gets the most recent multi-channel backup from the db
-func FindMultiChannelBackupByPubkey(pubkey string, db *bun.DB) (MultiChannelBackup, error) {
+func (n *NodewatcherDB) FindMultiChannelBackupByPubkey(pubkey string) (MultiChannelBackup, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	var mc MultiChannelBackup
 
-	nodeFromDB, err := FindNodeByPubkey(pubkey, db)
+	nodeFromDB, err := n.FindNodeByPubkey(pubkey)
 	if err != nil {
 		return mc, err
 	}
 
-	err = db.NewSelect().
+	err = n.db.NewSelect().
 		Model(&mc).
 		Where("node_id = ?", nodeFromDB.ID).
 		OrderExpr("created_at DESC").
