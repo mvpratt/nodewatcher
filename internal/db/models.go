@@ -23,7 +23,7 @@ type Node struct {
 	URL      string `bun:"url,unique"`
 	Alias    string `bun:"alias"`
 	Pubkey   string `bun:"pubkey"`
-	Macaroon string `bund:"macaroon"`
+	Macaroon string `bun:"macaroon"`
 }
 
 // Channel is a Lightning Channel
