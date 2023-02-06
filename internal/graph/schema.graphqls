@@ -24,7 +24,6 @@ type MultiChannelBackup {
   node_id:    Int!
 }
 
-
 input NewNode {
   id: Int!
   url: String!
@@ -33,31 +32,18 @@ input NewNode {
   macaroon: String!
 }
 
-type Todo {
-  id: ID!
-  text: String!
-  done: Boolean!
-  user: User!
-}
-
 type User {
   id: ID!
   name: String!
 }
 
 type Query {
-  todos: [Todo!]!
   nodes: [Node!]!
   channels: [Channel!]!
   multi_channel_backups: [MultiChannelBackup!]!
 }
 
-input NewTodo {
-  text: String!
-  userId: String!
-}
 
 type Mutation {
-  createTodo(input: NewTodo!): Todo!
   createNode(input: NewNode!): Node!
 }

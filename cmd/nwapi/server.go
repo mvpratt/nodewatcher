@@ -34,9 +34,7 @@ func main() {
 	nwDB.EnableDebugLogs()
 	nwDB.RunMigrations()
 
-	nodeService := &db.NodeImpl{ID: 1, URL: "hello", Alias: "world", Pubkey: "111", Macaroon: "macaroon"}
-
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{Node: nodeService, DB: nwDB}}))
+	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{DB: nwDB}}))
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)

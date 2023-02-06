@@ -15,19 +15,6 @@ import (
 	"github.com/uptrace/bun/migrate"
 )
 
-// NodewatcherIF is the interface to a nodewatcher database
-//type NodewatcherIF interface {
-//	RunMigrations()
-//ConnectToDB(params *ConnectionParams)
-// EnableDebugLogs()
-// InsertNode(node *Node)
-// FindNodeByPubkey(pubkey string)
-// InsertChannel(channel lndclient.ChannelInfo, pubkey string)
-// FindChannelByNodeID(id int64)
-// InsertMultiChannelBackup(backup string, pubkey string)
-// FindMultiChannelBackupByPubkey(pubkey string)
-//}
-
 // NodewatcherDB is an implementation of the DB interface
 type NodewatcherDB struct {
 	db *bun.DB
