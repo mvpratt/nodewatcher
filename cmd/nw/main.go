@@ -25,10 +25,10 @@ func main() {
 		DatabaseName: util.RequireEnvVar("POSTGRES_DB"),
 	}
 
-	// connect to database
-	depotDB := db.ConnectToDB(dbParams)
-	db.EnableDebugLogs(depotDB)
-	db.RunMigrations(depotDB)
+	nwDB := db.NodewatcherDB{}
+	nwDB.ConnectToDB(dbParams)
+	nwDB.EnableDebugLogs()
+	nwDB.RunMigrations()
 
 	var (
 		macaroon = util.RequireEnvVar("MACAROON_HEADER")
@@ -53,12 +53,13 @@ func main() {
 	// lndConfig.Network = lndclient.NetworkRegtest
 
 	// connect to node via grpc
-	services, err := lndclient.NewLndServices(lndConfig)
+	lndServices, err := lndclient.NewLndServices(lndConfig)
+	lndClient := lndServices.LndServices.Client
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	nodeInfo, err := services.LndServices.Client.GetInfo(context.Background())
+	nodeInfo, err := lndClient.GetInfo(context.Background())
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -71,7 +72,7 @@ func main() {
 		Macaroon: macaroon,
 	}
 
-	err = db.InsertNode(node, depotDB)
+	err = nwDB.InsertNode(node)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -79,8 +80,8 @@ func main() {
 	const pollInterval = 60 // 1 minute
 
 	done := make(chan bool)
-	go health.Monitor(pollInterval, services.LndServices.Client)
-	go backup.SaveChannelBackups(pollInterval, node, services.LndServices.Client, depotDB)
+	go health.Monitor(pollInterval, lndClient)
+	go backup.SaveChannelBackups(pollInterval, node, lndClient, nwDB)
 
 	<-done // Block forever
 }

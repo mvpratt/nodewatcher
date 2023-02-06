@@ -10,11 +10,10 @@ import (
 
 	"github.com/lightninglabs/lndclient"
 	"github.com/mvpratt/nodewatcher/internal/db"
-	"github.com/uptrace/bun"
 )
 
 // SaveChannelBackups ...
-func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client lndclient.LightningClient, depotDB *bun.DB) {
+func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client lndclient.LightningClient, nwDB db.NodewatcherDB) {
 	for {
 		fmt.Println("\nSaving channel backups ...")
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -25,7 +24,7 @@ func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client 
 			log.Print(err.Error())
 		}
 		for _, item := range channels {
-			err := db.InsertChannel(item, node.Pubkey, depotDB)
+			err := nwDB.InsertChannel(item, node.Pubkey)
 			if err != nil {
 				log.Print(err.Error())
 			}
@@ -38,7 +37,7 @@ func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client 
 		}
 
 		// mulitchannel backup
-		err = db.InsertMultiChannelBackup(base64.StdEncoding.EncodeToString(chanBackups), node.Pubkey, depotDB)
+		err = nwDB.InsertMultiChannelBackup(base64.StdEncoding.EncodeToString(chanBackups), node.Pubkey)
 		if err != nil {
 			log.Print(err.Error())
 		}

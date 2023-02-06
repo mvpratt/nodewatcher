@@ -1,4 +1,7 @@
 cmd/nw/nw
+cmd/nwapi/server
 env*
 creds/tls.cert
 draft
+generated.go
+models_gen.go

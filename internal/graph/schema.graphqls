@@ -1,0 +1,63 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+type Node {
+  id:       Int!
+  url:      String!
+  alias:    String!
+  pubkey:   String!
+  macaroon: String!
+}
+
+type Channel {
+  id:           Int!
+  funding_txid: String!
+  output_index: Int!
+  node_id:      Int!
+}
+
+type MultiChannelBackup {
+  id:         Int!
+  created_at: String!
+  backup:     String!
+  node_id:    Int!
+}
+
+
+input NewNode {
+  id: Int!
+  url: String!
+  alias: String!
+  pubkey: String!
+  macaroon: String!
+}
+
+type Todo {
+  id: ID!
+  text: String!
+  done: Boolean!
+  user: User!
+}
+
+type User {
+  id: ID!
+  name: String!
+}
+
+type Query {
+  todos: [Todo!]!
+  nodes: [Node!]!
+  channels: [Channel!]!
+  multi_channel_backups: [MultiChannelBackup!]!
+}
+
+input NewTodo {
+  text: String!
+  userId: String!
+}
+
+type Mutation {
+  createTodo(input: NewTodo!): Todo!
+  createNode(input: NewNode!): Node!
+}

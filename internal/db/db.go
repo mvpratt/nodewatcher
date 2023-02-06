@@ -4,120 +4,40 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/lightninglabs/lndclient"
-	"github.com/mvpratt/nodewatcher/internal/db/migrations"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/pgdialect"
-	"github.com/uptrace/bun/driver/pgdriver"
-	"github.com/uptrace/bun/extra/bundebug"
-	"github.com/uptrace/bun/migrate"
 )
 
-// ConnectionParams include database credentials and network details
-type ConnectionParams struct {
-	Host         string
-	Port         string
-	User         string
-	Password     string
-	DatabaseName string
+// NodeIF is an interface
+type NodeIF interface {
+	Create(id int64, url string, alias string, pubkey string, macaroon string)
 }
 
-// Node is a Lightning Node
-type Node struct {
-	bun.BaseModel `bun:"table:nodes"`
-
-	ID       int64  `bun:"id,pk,autoincrement"`
-	URL      string `bun:"url,unique"`
-	Alias    string `bun:"alias"`
-	Pubkey   string `bun:"pubkey"`
-	Macaroon string `bund:"macaroon"`
+// NodeImpl is a node
+type NodeImpl struct {
+	ID       int64
+	URL      string
+	Alias    string
+	Pubkey   string
+	Macaroon string
 }
 
-// Channel is a Lightning Channel
-type Channel struct {
-	bun.BaseModel `bun:"table:channels"`
-
-	ID          int64  `bun:"id,pk,autoincrement"`
-	FundingTxid string `bun:"funding_txid"`
-	OutputIndex int64  `bun:"output_index"`
-	NodeID      int64  `bun:"node_id"`
-}
-
-// ChannelBackup is an encrypted static channel backup of a single lightning channel
-type ChannelBackup struct {
-	bun.BaseModel `bun:"table:channel_backups"`
-
-	ID               int64     `bun:"id,pk,autoincrement"`
-	CreatedAt        time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp"`
-	FundingTxidBytes string    `bun:"funding_txid_bytes"`
-	OutputIndex      int64     `bun:"output_index"`
-	Backup           string    `bun:"backup"`
-}
-
-// MultiChannelBackup is an encrypted backup of a lightning channel state
-type MultiChannelBackup struct {
-	bun.BaseModel `bun:"table:multi_channel_backups"`
-
-	ID        int64     `bun:"id,pk,autoincrement"`
-	CreatedAt time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp"`
-	Backup    string    `bun:"backup"`
-	NodeID    int64     `bun:"node_id"`
-}
-
-// RunMigrations gets all *.sql files from /migrations and runs them to create tables and constraints
-func RunMigrations(db *bun.DB) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	migrator := migrate.NewMigrator(db, migrations.Migrations)
-	migrator.Init(ctx)
-
-	if err := migrator.Lock(ctx); err != nil {
-		return err
-	}
-	defer migrator.Unlock(ctx) //nolint:errcheck
-
-	group, err := migrator.Migrate(ctx)
-	if err != nil {
-		return err
-	}
-	if group.IsZero() {
-		log.Print("there are no new migrations to run (database is up to date)\n")
-	}
-	log.Printf("migrated to %s\n", group)
-	return nil
-}
-
-// ConnectToDB connects to a Postgres database with the credentials provided
-func ConnectToDB(params *ConnectionParams) *bun.DB {
-
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", params.User, params.Password, params.Host, params.Port, params.DatabaseName)
-	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
-	depotDB := bun.NewDB(sqldb, pgdialect.New())
-	return depotDB
-}
-
-// EnableDebugLogs logs all database queries to the console
-func EnableDebugLogs(db *bun.DB) {
-	db.AddQueryHook(bundebug.NewQueryHook(
-		bundebug.WithVerbose(true),
-		bundebug.FromEnv("BUNDEBUG"),
-	))
+// Create is a function to create a new node
+func (n *NodeImpl) Create(id int64, url string, alias string, pubkey string, macaroon string) {
+	fmt.Printf("I have a node: %s\n", n.Alias)
+	panic("oops!")
 }
 
 // InsertNode adds a lightning node to the database
-func InsertNode(node *Node, db *bun.DB) error {
+func (n *NodewatcherDB) InsertNode(node *Node) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	_, err := db.NewInsert().
+	_, err := n.db.NewInsert().
 		Model(node).
 		On("conflict (\"pubkey\") do nothing").
 		Exec(ctx)
@@ -126,12 +46,12 @@ func InsertNode(node *Node, db *bun.DB) error {
 }
 
 // FindNodeByPubkey gets node from the db
-func FindNodeByPubkey(pubkey string, db *bun.DB) (Node, error) {
+func (n *NodewatcherDB) FindNodeByPubkey(pubkey string) (Node, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	var node Node
-	err := db.NewSelect().
+	err := n.db.NewSelect().
 		Model(&node).
 		Where("pubkey = ?", pubkey).
 		Scan(ctx, &node)
@@ -139,14 +59,27 @@ func FindNodeByPubkey(pubkey string, db *bun.DB) (Node, error) {
 	return node, err
 }
 
+// FindAllNodes gets node from the db
+func (n *NodewatcherDB) FindAllNodes() ([]Node, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	var nodes []Node
+	err := n.db.NewSelect().
+		Model(&nodes).
+		Scan(ctx, &nodes)
+
+	return nodes, err
+}
+
 // InsertChannel adds a channel to the db
-func InsertChannel(channel lndclient.ChannelInfo, pubkey string, db *bun.DB) error {
+func (n *NodewatcherDB) InsertChannel(channel lndclient.ChannelInfo, pubkey string) error {
 	//log.Printf("\npubkey: %s", pubkey)
 	//log.Printf("\nchannelpoint: %s", channel.ChannelPoint)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	nodeFromDB, err := FindNodeByPubkey(pubkey, db)
+	nodeFromDB, err := n.FindNodeByPubkey(pubkey)
 	if err != nil {
 		return err
 	}
@@ -165,7 +98,7 @@ func InsertChannel(channel lndclient.ChannelInfo, pubkey string, db *bun.DB) err
 		NodeID:      nodeFromDB.ID,
 	}
 
-	_, err = db.NewInsert().
+	_, err = n.db.NewInsert().
 		Model(mychan).
 		On("conflict (\"funding_txid\",\"output_index\") do nothing").
 		Exec(ctx)
@@ -174,12 +107,12 @@ func InsertChannel(channel lndclient.ChannelInfo, pubkey string, db *bun.DB) err
 }
 
 // FindChannelByNodeID gets channel from the db
-func FindChannelByNodeID(id int64, db *bun.DB) (Channel, error) {
+func (n *NodewatcherDB) FindChannelByNodeID(id int64) (Channel, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	var c Channel
-	err := db.NewSelect().
+	err := n.db.NewSelect().
 		Model(&c).
 		Where("node_id = ?", id).
 		Scan(ctx, &c)
@@ -187,12 +120,38 @@ func FindChannelByNodeID(id int64, db *bun.DB) (Channel, error) {
 	return c, err
 }
 
-// InsertMultiChannelBackup adds a static channel backup of all channels to the database
-func InsertMultiChannelBackup(backup string, pubkey string, db *bun.DB) error {
+// FindAllChannels gets channel from the db
+func (n *NodewatcherDB) FindAllChannels() ([]Channel, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	nodeFromDB, err := FindNodeByPubkey(pubkey, db)
+	var channels []Channel
+	err := n.db.NewSelect().
+		Model(&channels).
+		Scan(ctx, &channels)
+
+	return channels, err
+}
+
+// FindAllMultiChannelBackups gets channel from the db
+func (n *NodewatcherDB) FindAllMultiChannelBackups() ([]MultiChannelBackup, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	var channels []MultiChannelBackup
+	err := n.db.NewSelect().
+		Model(&channels).
+		Scan(ctx, &channels)
+
+	return channels, err
+}
+
+// InsertMultiChannelBackup adds a static channel backup of all channels to the database
+func (n *NodewatcherDB) InsertMultiChannelBackup(backup string, pubkey string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	nodeFromDB, err := n.FindNodeByPubkey(pubkey)
 	if err != nil {
 		return err
 	}
@@ -203,7 +162,7 @@ func InsertMultiChannelBackup(backup string, pubkey string, db *bun.DB) error {
 		NodeID:    nodeFromDB.ID,
 		CreatedAt: time.Now(),
 	}
-	_, err = db.NewInsert().
+	_, err = n.db.NewInsert().
 		Model(multiBackup).
 		Exec(ctx)
 
@@ -211,18 +170,18 @@ func InsertMultiChannelBackup(backup string, pubkey string, db *bun.DB) error {
 }
 
 // FindMultiChannelBackupByPubkey gets the most recent multi-channel backup from the db
-func FindMultiChannelBackupByPubkey(pubkey string, db *bun.DB) (MultiChannelBackup, error) {
+func (n *NodewatcherDB) FindMultiChannelBackupByPubkey(pubkey string) (MultiChannelBackup, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	var mc MultiChannelBackup
 
-	nodeFromDB, err := FindNodeByPubkey(pubkey, db)
+	nodeFromDB, err := n.FindNodeByPubkey(pubkey)
 	if err != nil {
 		return mc, err
 	}
 
-	err = db.NewSelect().
+	err = n.db.NewSelect().
 		Model(&mc).
 		Where("node_id = ?", nodeFromDB.ID).
 		OrderExpr("created_at DESC").
