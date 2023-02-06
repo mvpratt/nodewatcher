@@ -79,6 +79,50 @@ func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
 	return graphNodes, nil
 }
 
+// Channels is the resolver for the channels field.
+func (r *queryResolver) Channels(ctx context.Context) ([]*model.Channel, error) {
+	channels, err := r.DB.FindAllChannels()
+	if err != nil {
+		return nil, err
+	}
+
+	var graphChannels []*model.Channel
+
+	var g *model.Channel
+	for _, channel := range channels {
+		g = &model.Channel{
+			ID:          int(channel.ID),
+			FundingTxid: channel.FundingTxid,
+			OutputIndex: int(channel.OutputIndex),
+			NodeID:      int(channel.NodeID),
+		}
+		graphChannels = append(graphChannels, g)
+	}
+	return graphChannels, nil
+}
+
+// MultiChannelBackups is the resolver for the multi_channel_backups field.
+func (r *queryResolver) MultiChannelBackups(ctx context.Context) ([]*model.MultiChannelBackup, error) {
+	channels, err := r.DB.FindAllMultiChannelBackups()
+	if err != nil {
+		return nil, err
+	}
+
+	var graphChannels []*model.MultiChannelBackup
+
+	var g *model.MultiChannelBackup
+	for _, channel := range channels {
+		g = &model.MultiChannelBackup{
+			ID:        int(channel.ID),
+			CreatedAt: "createdAt",
+			Backup:    channel.Backup,
+			NodeID:    int(channel.NodeID),
+		}
+		graphChannels = append(graphChannels, g)
+	}
+	return graphChannels, nil
+}
+
 // User is the resolver for the user field.
 func (r *todoResolver) User(ctx context.Context, obj *model.Todo) (*model.User, error) {
 	return &model.User{ID: obj.UserID, Name: "user " + obj.UserID}, nil

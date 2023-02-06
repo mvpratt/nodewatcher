@@ -120,6 +120,32 @@ func (n *NodewatcherDB) FindChannelByNodeID(id int64) (Channel, error) {
 	return c, err
 }
 
+// FindAllChannels gets channel from the db
+func (n *NodewatcherDB) FindAllChannels() ([]Channel, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	var channels []Channel
+	err := n.db.NewSelect().
+		Model(&channels).
+		Scan(ctx, &channels)
+
+	return channels, err
+}
+
+// FindAllMultiChannelBackups gets channel from the db
+func (n *NodewatcherDB) FindAllMultiChannelBackups() ([]MultiChannelBackup, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	var channels []MultiChannelBackup
+	err := n.db.NewSelect().
+		Model(&channels).
+		Scan(ctx, &channels)
+
+	return channels, err
+}
+
 // InsertMultiChannelBackup adds a static channel backup of all channels to the database
 func (n *NodewatcherDB) InsertMultiChannelBackup(backup string, pubkey string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
