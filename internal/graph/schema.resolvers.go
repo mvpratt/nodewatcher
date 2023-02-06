@@ -6,36 +6,21 @@ package graph
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"math/rand"
 
 	"github.com/mvpratt/nodewatcher/internal/db"
 	"github.com/mvpratt/nodewatcher/internal/graph/model"
 )
 
-// CreateTodo is the resolver for the createTodo field.
-func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
-	todo := &model.Todo{
-		Text:   input.Text,
-		ID:     fmt.Sprintf("T%d", rand.Int()),
-		User:   &model.User{ID: input.UserID, Name: "user " + input.UserID},
-		UserID: input.UserID,
-	}
-	r.todos = append(r.todos, todo)
-	return todo, nil
-}
-
 // CreateNode is the resolver for the createNode field.
 func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) (*model.Node, error) {
 	node := &model.Node{
-		ID:       input.ID,
+		ID:       int64(input.ID),
 		URL:      input.URL,
 		Alias:    input.Alias,
 		Pubkey:   input.Pubkey,
 		Macaroon: input.Macaroon,
 	}
-	r.nodes = append(r.nodes, node)
 
 	dbNode := &db.Node{
 		ID:       int64(input.ID),
@@ -51,11 +36,6 @@ func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) 
 	return node, nil
 }
 
-// Todos is the resolver for the todos field.
-func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
-	return r.todos, nil
-}
-
 // Nodes is the resolver for the nodes field.
 func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
 	nodes, err := r.DB.FindAllNodes()
@@ -68,7 +48,7 @@ func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
 	var g *model.Node
 	for _, node := range nodes {
 		g = &model.Node{
-			ID:       int(node.ID),
+			ID:       int64(node.ID),
 			URL:      node.URL,
 			Alias:    node.Alias,
 			Pubkey:   node.Pubkey,
@@ -91,10 +71,10 @@ func (r *queryResolver) Channels(ctx context.Context) ([]*model.Channel, error) 
 	var g *model.Channel
 	for _, channel := range channels {
 		g = &model.Channel{
-			ID:          int(channel.ID),
+			ID:          channel.ID,
 			FundingTxid: channel.FundingTxid,
-			OutputIndex: int(channel.OutputIndex),
-			NodeID:      int(channel.NodeID),
+			OutputIndex: channel.OutputIndex,
+			NodeID:      channel.NodeID,
 		}
 		graphChannels = append(graphChannels, g)
 	}
@@ -113,19 +93,14 @@ func (r *queryResolver) MultiChannelBackups(ctx context.Context) ([]*model.Multi
 	var g *model.MultiChannelBackup
 	for _, channel := range channels {
 		g = &model.MultiChannelBackup{
-			ID:        int(channel.ID),
-			CreatedAt: "createdAt",
+			ID:        channel.ID,
+			CreatedAt: "now", //time.Now(), //todo use actual time from db
 			Backup:    channel.Backup,
-			NodeID:    int(channel.NodeID),
+			NodeID:    channel.NodeID,
 		}
 		graphChannels = append(graphChannels, g)
 	}
 	return graphChannels, nil
-}
-
-// User is the resolver for the user field.
-func (r *todoResolver) User(ctx context.Context, obj *model.Todo) (*model.User, error) {
-	return &model.User{ID: obj.UserID, Name: "user " + obj.UserID}, nil
 }
 
 // Mutation returns MutationResolver implementation.
@@ -134,9 +109,5 @@ func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
-// Todo returns TodoResolver implementation.
-func (r *Resolver) Todo() TodoResolver { return &todoResolver{r} }
-
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-type todoResolver struct{ *Resolver }
