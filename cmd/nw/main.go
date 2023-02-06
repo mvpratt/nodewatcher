@@ -26,7 +26,6 @@ func main() {
 	}
 
 	nwDB := db.NodewatcherDB{}
-	// connect to database
 	nwDB.ConnectToDB(dbParams)
 	nwDB.EnableDebugLogs()
 	nwDB.RunMigrations()
@@ -54,12 +53,13 @@ func main() {
 	// lndConfig.Network = lndclient.NetworkRegtest
 
 	// connect to node via grpc
-	services, err := lndclient.NewLndServices(lndConfig)
+	lndServices, err := lndclient.NewLndServices(lndConfig)
+	lndClient := lndServices.LndServices.Client
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	nodeInfo, err := services.LndServices.Client.GetInfo(context.Background())
+	nodeInfo, err := lndClient.GetInfo(context.Background())
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -80,8 +80,8 @@ func main() {
 	const pollInterval = 60 // 1 minute
 
 	done := make(chan bool)
-	go health.Monitor(pollInterval, services.LndServices.Client)
-	go backup.SaveChannelBackups(pollInterval, node, services.LndServices.Client, nwDB)
+	go health.Monitor(pollInterval, lndClient)
+	go backup.SaveChannelBackups(pollInterval, node, lndClient, nwDB)
 
 	<-done // Block forever
 }
