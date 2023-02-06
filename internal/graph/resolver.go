@@ -13,5 +13,5 @@ type Resolver struct {
 	todos []*model.Todo
 	nodes []*model.Node
 	Node  db.NodeIF
-	// connect to database here ...
+	DB    db.NodewatcherDB
 }

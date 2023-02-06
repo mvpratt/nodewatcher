@@ -5,7 +5,7 @@
 type Node {
   id:       Int!
   url:      String!
-  alias:     String!
+  alias:    String!
   pubkey:   String!
   macaroon: String!
 }

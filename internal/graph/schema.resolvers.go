@@ -44,8 +44,20 @@ func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
 
 // Nodes is the resolver for the nodes field.
 func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
-	//node, err := db.FindNodeByPubkey("026272077362d09a1296bd90c1714e21a5f978558625901afdf03bf9421e8a7d0d", database)
-	return r.nodes, nil
+	node, err := r.DB.FindNodeByPubkey("026272077362d09a1296bd90c1714e21a5f978558625901afdf03bf9421e8a7d0d")
+	if err != nil {
+		return nil, err
+	}
+	var nodes []*model.Node
+	var graphNode = &model.Node{
+		ID:       int(node.ID),
+		URL:      node.URL,
+		Alias:    node.Alias,
+		Pubkey:   node.Pubkey,
+		Macaroon: node.Macaroon,
+	}
+	nodes = append(nodes, graphNode)
+	return nodes, nil
 }
 
 // User is the resolver for the user field.
