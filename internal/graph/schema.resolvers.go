@@ -7,8 +7,10 @@ package graph
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 
+	"github.com/mvpratt/nodewatcher/internal/db"
 	"github.com/mvpratt/nodewatcher/internal/graph/model"
 )
 
@@ -34,6 +36,18 @@ func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) 
 		Macaroon: input.Macaroon,
 	}
 	r.nodes = append(r.nodes, node)
+
+	dbNode := &db.Node{
+		ID:       int64(input.ID),
+		URL:      input.URL,
+		Alias:    input.Alias,
+		Pubkey:   input.Pubkey,
+		Macaroon: input.Macaroon,
+	}
+	err := r.DB.InsertNode(dbNode)
+	if err != nil {
+		log.Print(err.Error())
+	}
 	return node, nil
 }
 
@@ -44,20 +58,25 @@ func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
 
 // Nodes is the resolver for the nodes field.
 func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
-	node, err := r.DB.FindNodeByPubkey("026272077362d09a1296bd90c1714e21a5f978558625901afdf03bf9421e8a7d0d")
+	nodes, err := r.DB.FindAllNodes()
 	if err != nil {
 		return nil, err
 	}
-	var nodes []*model.Node
-	var graphNode = &model.Node{
-		ID:       int(node.ID),
-		URL:      node.URL,
-		Alias:    node.Alias,
-		Pubkey:   node.Pubkey,
-		Macaroon: node.Macaroon,
+
+	var graphNodes []*model.Node
+
+	var g *model.Node
+	for _, node := range nodes {
+		g = &model.Node{
+			ID:       int(node.ID),
+			URL:      node.URL,
+			Alias:    node.Alias,
+			Pubkey:   node.Pubkey,
+			Macaroon: node.Macaroon,
+		}
+		graphNodes = append(graphNodes, g)
 	}
-	nodes = append(nodes, graphNode)
-	return nodes, nil
+	return graphNodes, nil
 }
 
 // User is the resolver for the user field.

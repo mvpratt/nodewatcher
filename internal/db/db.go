@@ -59,6 +59,19 @@ func (n *NodewatcherDB) FindNodeByPubkey(pubkey string) (Node, error) {
 	return node, err
 }
 
+// FindAllNodes gets node from the db
+func (n *NodewatcherDB) FindAllNodes() ([]Node, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	var nodes []Node
+	err := n.db.NewSelect().
+		Model(&nodes).
+		Scan(ctx, &nodes)
+
+	return nodes, err
+}
+
 // InsertChannel adds a channel to the db
 func (n *NodewatcherDB) InsertChannel(channel lndclient.ChannelInfo, pubkey string) error {
 	//log.Printf("\npubkey: %s", pubkey)
