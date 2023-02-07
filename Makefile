@@ -2,7 +2,7 @@
 
 .PHONY:lint
 lint:
-	golint ./...
+	go vet
 
 .PHONY:build
 build: lint
