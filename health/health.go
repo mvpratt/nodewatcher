@@ -31,32 +31,34 @@ func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string
 }
 
 func processGetInfoResponse(info *lnrpc.GetInfoResponse) string {
-	statusJSON, err := json.MarshalIndent(info, " ", "    ")
-	if err != nil {
-		log.Print(err.Error())
-	}
-	statusString := string(statusJSON)
+        statusJSON, err := json.MarshalIndent(info, " ", "    ")
+        if err != nil {
+                log.Fatalf(err.Error())
+        }
+        statusString := string(statusJSON)
 
-	if info.SyncedToChain != true {
-		return fmt.Sprintf("\n\nWARNING: Lightning node is not fully synced."+
-			"\nDetails: %s", statusString)
-	}
-	if info.SyncedToGraph != true {
-		return fmt.Sprintf("\n\nWARNING: Network graph is not fully synced."+
-			"\nDetails: %s", statusString)
-	}
+        if info.SyncedToChain != true {
+                return fmt.Sprintf("\n\nGood morning Julie! This is Mike's lightning node. I'm not feeling well, looks like I may need some maintenance."+
+                        "\nStatus: Not fully synced to the blockchain"+
+                        "\nDetails: %s", statusString)
+        }
+        if info.SyncedToGraph != true {
+                return fmt.Sprintf("\n\nGood morning Julie! This is Mike's lightning node. I'm not feeling well, looks like I may need some maintenance."+
+                        "\nStatus: Network graph is not fully synced."+
+                        "\nDetails: %s", statusString)
+        }
 
-	// Check how long since last block. Convert unix time string into base10, 64-bit int
+        // Check how long since last block. Convert unix time string into base10, 64-bit int
 	lastBlockTime := info.BestHeaderTimestamp
 	timeSinceLastBlock := time.Now().Sub(time.Unix(lastBlockTime, 0))
-	return fmt.Sprintf(
-		"\nGood news, lightning node \"%s\" is fully synced!"+
-			"\nLast block received %s ago", info.Alias, timeSinceLastBlock)
+        return fmt.Sprintf(
+                "\n\nGood morning Julie! This is Mike's lightning node. Today is a great day, I'm fully synced to the blockchain!"+
+                        "\nLast block received %s ago", timeSinceLastBlock)
 }
 
 // Monitor - Once a day, send a text message with lightning node status if SMS_ENABLE is true
 func Monitor(statusPollInterval time.Duration, client lnrpc.LightningClient) {
-	const statusNotifyTime = 1 // when time = 01:00 UTC
+	const statusNotifyTime = 14 // when time = 14:00 UTC
 
 	smsEnable := util.RequireEnvVar("SMS_ENABLE")
 	var smsTo, smsFrom string
