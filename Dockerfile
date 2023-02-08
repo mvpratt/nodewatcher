@@ -7,6 +7,15 @@ RUN apk add --no-cache make bash vim jq
 # Install dependencies
 RUN go install golang.org/x/lint/golint@latest
 
+# Disable CGO to fix this error when building nodewatcher:
+#     go: downloading golang.org/x/text v0.3.8
+#     # runtime/cgo
+#     _cgo_export.c:3:10: fatal error: stdlib.h: No such file or directory
+#         3 | #include <stdlib.h>
+#           |          ^~~~~~~~~~
+#     compilation terminated.
+ENV CGO_ENABLED=0
+
 # Build from source
 RUN mkdir /home/nodewatcher
 WORKDIR /home/nodewatcher
@@ -49,11 +58,9 @@ ENV POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 RUN mkdir /home/nodewatcher
 WORKDIR /home/nodewatcher
 
-# get database migrations
-COPY --from=builder /home/nodewatcher/db ./db
-
 # get tls cert for the lightning node
 COPY --from=builder /home/nodewatcher/creds ./creds
 
-COPY --from=builder /home/nodewatcher/nw /bin/
+COPY --from=builder /home/nodewatcher/cmd/nw/nw /bin/
+COPY --from=builder /home/nodewatcher/cmd/nwapi/nwapi /bin/
 CMD ["/bin/nw"]

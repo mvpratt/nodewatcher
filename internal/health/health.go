@@ -83,12 +83,14 @@ func Monitor(statusPollInterval time.Duration, client lndclient.LightningClient)
 		nodeInfo, err := client.GetInfo(ctx)
 		if err != nil {
 			log.Print(err.Error())
+			time.Sleep(statusPollInterval * time.Second)
 			continue // no point in processing info response
 		}
 
 		textMsg, err := processGetInfoResponse(nodeInfo)
 		if err != nil {
 			log.Print(err.Error())
+			time.Sleep(statusPollInterval * time.Second)
 			continue // no point in processing info response
 		}
 
