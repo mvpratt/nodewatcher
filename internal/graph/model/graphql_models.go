@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 // Node is a Lightning Node
 type Node struct {
 	ID       int64  `json:"id"`
@@ -19,8 +21,8 @@ type Channel struct {
 
 // MultiChannelBackup is an encrypted backup of a lightning channel state
 type MultiChannelBackup struct {
-	ID        int64  `json:"id"`
-	CreatedAt string `json:"created_at"`
-	Backup    string `json:"backup"`
-	NodeID    int64  `json:"node_id"`
+	ID        int64     `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Backup    string    `json:"backup"`
+	NodeID    int64     `json:"node_id"`
 }

@@ -7,10 +7,16 @@ package graph
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/mvpratt/nodewatcher/internal/db"
 	"github.com/mvpratt/nodewatcher/internal/graph/model"
 )
+
+// CreatedAt is the resolver for the created_at field.
+func (r *multiChannelBackupResolver) CreatedAt(ctx context.Context, obj *model.MultiChannelBackup) (string, error) {
+	return obj.CreatedAt.Format(time.RFC850), nil
+}
 
 // CreateNode is the resolver for the createNode field.
 func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) (*model.Node, error) {
@@ -94,7 +100,7 @@ func (r *queryResolver) MultiChannelBackups(ctx context.Context) ([]*model.Multi
 	for _, channel := range channels {
 		g = &model.MultiChannelBackup{
 			ID:        channel.ID,
-			CreatedAt: "now", //time.Now(), //todo use actual time from db
+			CreatedAt: channel.CreatedAt,
 			Backup:    channel.Backup,
 			NodeID:    channel.NodeID,
 		}
@@ -103,11 +109,17 @@ func (r *queryResolver) MultiChannelBackups(ctx context.Context) ([]*model.Multi
 	return graphChannels, nil
 }
 
+// MultiChannelBackup returns MultiChannelBackupResolver implementation.
+func (r *Resolver) MultiChannelBackup() MultiChannelBackupResolver {
+	return &multiChannelBackupResolver{r}
+}
+
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+type multiChannelBackupResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
