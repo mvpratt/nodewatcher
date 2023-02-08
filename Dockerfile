@@ -63,4 +63,7 @@ COPY --from=builder /home/nodewatcher/creds ./creds
 
 COPY --from=builder /home/nodewatcher/cmd/nw/nw /bin/
 COPY --from=builder /home/nodewatcher/cmd/nwapi/nwapi /bin/
-CMD ["/bin/nw"]
+
+ARG CMD
+ENV CMD=${CMD}
+CMD ${CMD}
