@@ -1,5 +1,5 @@
 cmd/nw/nw
-cmd/nwapi/server
+cmd/nwapi/nwapi
 env*
 creds/tls.cert
 draft
