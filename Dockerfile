@@ -58,11 +58,9 @@ ENV POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 RUN mkdir /home/nodewatcher
 WORKDIR /home/nodewatcher
 
-# get database migrations
-COPY --from=builder /home/nodewatcher/db ./db
-
 # get tls cert for the lightning node
 COPY --from=builder /home/nodewatcher/creds ./creds
 
-COPY --from=builder /home/nodewatcher/nw /bin/
+COPY --from=builder /home/nodewatcher/cmd/nw/nw /bin/
+COPY --from=builder /home/nodewatcher/cmd/nwapi/nwapi /bin/
 CMD ["/bin/nw"]
