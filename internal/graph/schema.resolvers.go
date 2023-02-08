@@ -29,7 +29,7 @@ func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) 
 	}
 
 	dbNode := &db.Node{
-		ID:       int64(input.ID),
+		ID:       0,
 		URL:      input.URL,
 		Alias:    input.Alias,
 		Pubkey:   input.Pubkey,

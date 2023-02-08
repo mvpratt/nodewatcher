@@ -26,7 +26,7 @@ func createNode(w http.ResponseWriter, r *http.Request) {
 	var node model.Node
 	_ = json.NewDecoder(r.Body).Decode(&node)
 	dbNode := &db.Node{
-		ID:       int64(node.ID),
+		ID:       0,
 		URL:      node.URL,
 		Alias:    node.Alias,
 		Pubkey:   node.Pubkey,
