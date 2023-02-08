@@ -8,7 +8,7 @@ lint:
 .PHONY:build
 build: lint
 	cd cmd/nw && go build -o nw
-	cd cmd/nwapi && go build -o server
+	cd cmd/nwapi && go build -o nwapi
 
 .PHONY:run
 run:
