@@ -21,6 +21,15 @@ func getNodes(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(nodes)
 }
 
+func getChannels(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	channels, err := nwDB.FindAllChannels(context.Background())
+	if err != nil {
+		log.Print(err)
+	}
+	json.NewEncoder(w).Encode(channels)
+}
+
 func createNode(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var node model.Node
@@ -64,9 +73,10 @@ func main() {
 
 	r := mux.NewRouter()
 
+	r.HandleFunc("/channels", getChannels).Methods("GET")
 	r.HandleFunc("/nodes", getNodes).Methods("GET")
-	r.HandleFunc("/multi-channel-backups", getMultiChannelBackups).Methods("GET")
 	r.HandleFunc("/nodes", createNode).Methods("POST")
+	r.HandleFunc("/multi-channel-backups", getMultiChannelBackups).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":8000", r))
 }
