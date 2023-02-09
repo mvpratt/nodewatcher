@@ -1,9 +1,11 @@
 package db
 
 import (
+	"log"
 	"time"
 
 	"github.com/uptrace/bun"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // ConnectionParams include database credentials and network details
@@ -33,6 +35,25 @@ type User struct {
 	ID       int64  `bun:"id,pk,autoincrement"`
 	Email    string `bun:"email,unique"`
 	Password string `bun:"password"`
+}
+
+func (user *User) HashPassword(password string) error {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	if err != nil {
+		return err
+	}
+	user.Password = string(bytes)
+	return nil
+}
+
+func (user *User) CheckPassword(providedPassword string) error {
+	log.Printf("provide pass: %s", providedPassword)
+	log.Printf("user pass: %s", user.Password)
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(providedPassword))
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Channel is a Lightning Channel
