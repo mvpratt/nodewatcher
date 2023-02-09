@@ -19,11 +19,11 @@ func RegisterUser(context *gin.Context) {
 		context.Abort()
 		return
 	}
-	// err := nwDB.InsertUser(&user)
-	// if err != nil {
-	// 	context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	// 	context.Abort()
-	// 	return
-	// }
+	err := db.InsertUser(&user)
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		context.Abort()
+		return
+	}
 	context.JSON(http.StatusCreated, gin.H{"userId": user.ID, "email": user.Email, "password": user.Password})
 }

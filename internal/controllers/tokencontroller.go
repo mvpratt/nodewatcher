@@ -17,26 +17,22 @@ type TokenRequest struct {
 func GenerateToken(context *gin.Context) {
 	log.Println("generate token")
 	var request TokenRequest
-	var user db.User
 
 	if err := context.ShouldBindJSON(&request); err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		context.Abort()
 		return
 	}
+	log.Println("query db")
 	// check if email exists and password is correct
-	//user, err := nwDB.FindUserByEmail(user.Email)
+	user, err := db.FindUserByEmail(request.Email)
+	log.Println(user)
 
-	user = db.User{
-		Email:    "email@email.com",
-		Password: "$2a$14$b6PRN7QIOGiTYsqvSZ8H8udeBaRtHwos09zijksU6qwVhwuxyyc1u",
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		context.Abort()
+		return
 	}
-
-	// if err != nil {
-	// 	context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	// 	context.Abort()
-	// 	return
-	// }
 	log.Println("check password")
 	credentialError := user.CheckPassword(request.Password)
 	if credentialError != nil {
