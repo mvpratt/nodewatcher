@@ -30,6 +30,15 @@ func getChannels(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(channels)
 }
 
+func getUsers(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	users, err := nwDB.FindAllUsers(context.Background())
+	if err != nil {
+		log.Print(err)
+	}
+	json.NewEncoder(w).Encode(users)
+}
+
 func createNode(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var node model.Node
@@ -43,6 +52,19 @@ func createNode(w http.ResponseWriter, r *http.Request) {
 	}
 	nwDB.InsertNode(dbNode)
 	json.NewEncoder(w).Encode(node)
+}
+
+func createUser(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var user model.User
+	_ = json.NewDecoder(r.Body).Decode(&user)
+	dbUser := &db.User{
+		ID:       0,
+		Email:    user.Email,
+		Password: user.Password,
+	}
+	nwDB.InsertUser(dbUser)
+	json.NewEncoder(w).Encode(user)
 }
 
 func getMultiChannelBackups(w http.ResponseWriter, r *http.Request) {
@@ -77,6 +99,8 @@ func main() {
 	r.HandleFunc("/nodes", getNodes).Methods("GET")
 	r.HandleFunc("/nodes", createNode).Methods("POST")
 	r.HandleFunc("/multi-channel-backups", getMultiChannelBackups).Methods("GET")
+	r.HandleFunc("/users", getUsers).Methods("GET")
+	r.HandleFunc("/users", createUser).Methods("POST")
 
 	log.Fatal(http.ListenAndServe(":8000", r))
 }

@@ -34,16 +34,25 @@ input NewNode {
 
 type User {
   id: ID!
-  name: String!
+  email: String!
+  password: String!
+}
+
+input NewUser {
+  id: Int!
+  email: String!
+  password: String!
 }
 
 type Query {
   nodes: [Node!]!
   channels: [Channel!]!
   multi_channel_backups: [MultiChannelBackup!]!
+  users: [User!]!
 }
 
 
 type Mutation {
   createNode(input: NewNode!): Node!
+  createUser(input: NewUser!): User!
 }

@@ -26,6 +26,15 @@ type Node struct {
 	Macaroon string `bun:"macaroon"`
 }
 
+// User is a
+type User struct {
+	bun.BaseModel `bun:"table:users"`
+
+	ID       int64  `bun:"id,pk,autoincrement"`
+	Email    string `bun:"email,unique"`
+	Password string `bun:"password"`
+}
+
 // Channel is a Lightning Channel
 type Channel struct {
 	bun.BaseModel `bun:"table:channels"`

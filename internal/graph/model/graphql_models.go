@@ -26,3 +26,10 @@ type MultiChannelBackup struct {
 	Backup    string    `json:"backup"`
 	NodeID    int64     `json:"node_id"`
 }
+
+// User is a nodewatcher user
+type User struct {
+	ID       int64  `json:"id"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
