@@ -29,12 +29,11 @@ func main() {
 		DatabaseName: util.RequireEnvVar("POSTGRES_DB"),
 	}
 
-	nwDB := db.NodewatcherDB{}
-	nwDB.ConnectToDB(dbParams)
-	nwDB.EnableDebugLogs()
-	nwDB.RunMigrations()
+	db.ConnectToDB(dbParams)
+	db.EnableDebugLogs()
+	db.RunMigrations()
 
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{DB: nwDB}}))
+	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{}}))
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)

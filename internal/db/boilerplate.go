@@ -15,17 +15,14 @@ import (
 	"github.com/uptrace/bun/migrate"
 )
 
-// NodewatcherDB is an implementation of the DB interface
-type NodewatcherDB struct {
-	db *bun.DB
-}
+var Instance *bun.DB
 
 // RunMigrations gets all *.sql files from /migrations and runs them to create tables and constraints
-func (d *NodewatcherDB) RunMigrations() error {
+func RunMigrations() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	migrator := migrate.NewMigrator(d.db, migrations.Migrations)
+	migrator := migrate.NewMigrator(Instance, migrations.Migrations)
 	migrator.Init(ctx)
 
 	if err := migrator.Lock(ctx); err != nil {
@@ -45,16 +42,15 @@ func (d *NodewatcherDB) RunMigrations() error {
 }
 
 // ConnectToDB connects to a Postgres database with the credentials provided
-func (d *NodewatcherDB) ConnectToDB(params *ConnectionParams) {
-
+func ConnectToDB(params *ConnectionParams) {
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", params.User, params.Password, params.Host, params.Port, params.DatabaseName)
 	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
-	d.db = bun.NewDB(sqldb, pgdialect.New())
+	Instance = bun.NewDB(sqldb, pgdialect.New())
 }
 
 // EnableDebugLogs logs all database queries to the console
-func (d *NodewatcherDB) EnableDebugLogs() {
-	d.db.AddQueryHook(bundebug.NewQueryHook(
+func EnableDebugLogs() {
+	Instance.AddQueryHook(bundebug.NewQueryHook(
 		bundebug.WithVerbose(true),
 		bundebug.FromEnv("BUNDEBUG"),
 	))

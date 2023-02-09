@@ -12,11 +12,11 @@ import (
 )
 
 // InsertNode adds a lightning node to the database
-func (n *NodewatcherDB) InsertNode(node *Node) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+func InsertNode(node *Node) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
 	defer cancel()
 
-	_, err := n.db.NewInsert().
+	_, err := Instance.NewInsert().
 		Model(node).
 		On("conflict (\"pubkey\") do nothing").
 		Exec(ctx)
@@ -25,12 +25,12 @@ func (n *NodewatcherDB) InsertNode(node *Node) error {
 }
 
 // FindNodeByPubkey gets node from the db
-func (n *NodewatcherDB) FindNodeByPubkey(pubkey string) (Node, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+func FindNodeByPubkey(pubkey string) (Node, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
 	defer cancel()
 
 	var node Node
-	err := n.db.NewSelect().
+	err := Instance.NewSelect().
 		Model(&node).
 		Where("pubkey = ?", pubkey).
 		Scan(ctx, &node)
@@ -39,9 +39,9 @@ func (n *NodewatcherDB) FindNodeByPubkey(pubkey string) (Node, error) {
 }
 
 // FindAllNodes gets node from the db
-func (n *NodewatcherDB) FindAllNodes(ctx context.Context) ([]Node, error) {
+func FindAllNodes(ctx context.Context) ([]Node, error) {
 	var nodes []Node
-	err := n.db.NewSelect().
+	err := Instance.NewSelect().
 		Model(&nodes).
 		Scan(ctx, &nodes)
 
@@ -49,13 +49,11 @@ func (n *NodewatcherDB) FindAllNodes(ctx context.Context) ([]Node, error) {
 }
 
 // InsertChannel adds a channel to the db
-func (n *NodewatcherDB) InsertChannel(channel lndclient.ChannelInfo, pubkey string) error {
-	//log.Printf("\npubkey: %s", pubkey)
-	//log.Printf("\nchannelpoint: %s", channel.ChannelPoint)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+func InsertChannel(channel lndclient.ChannelInfo, pubkey string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
 	defer cancel()
 
-	nodeFromDB, err := n.FindNodeByPubkey(pubkey)
+	nodeFromDB, err := FindNodeByPubkey(pubkey)
 	if err != nil {
 		return err
 	}
@@ -74,7 +72,7 @@ func (n *NodewatcherDB) InsertChannel(channel lndclient.ChannelInfo, pubkey stri
 		NodeID:      nodeFromDB.ID,
 	}
 
-	_, err = n.db.NewInsert().
+	_, err = Instance.NewInsert().
 		Model(mychan).
 		On("conflict (\"funding_txid\",\"output_index\") do nothing").
 		Exec(ctx)
@@ -83,12 +81,12 @@ func (n *NodewatcherDB) InsertChannel(channel lndclient.ChannelInfo, pubkey stri
 }
 
 // FindChannelByNodeID gets channel from the db
-func (n *NodewatcherDB) FindChannelByNodeID(id int64) (Channel, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+func FindChannelByNodeID(id int64) (Channel, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
 	defer cancel()
 
 	var c Channel
-	err := n.db.NewSelect().
+	err := Instance.NewSelect().
 		Model(&c).
 		Where("node_id = ?", id).
 		Scan(ctx, &c)
@@ -97,9 +95,9 @@ func (n *NodewatcherDB) FindChannelByNodeID(id int64) (Channel, error) {
 }
 
 // FindAllChannels gets channel from the db
-func (n *NodewatcherDB) FindAllChannels(ctx context.Context) ([]Channel, error) {
+func FindAllChannels(ctx context.Context) ([]Channel, error) {
 	var channels []Channel
-	err := n.db.NewSelect().
+	err := Instance.NewSelect().
 		Model(&channels).
 		Scan(ctx, &channels)
 
@@ -107,9 +105,9 @@ func (n *NodewatcherDB) FindAllChannels(ctx context.Context) ([]Channel, error) 
 }
 
 // FindAllMultiChannelBackups gets channel from the db
-func (n *NodewatcherDB) FindAllMultiChannelBackups(ctx context.Context) ([]MultiChannelBackup, error) {
+func FindAllMultiChannelBackups(ctx context.Context) ([]MultiChannelBackup, error) {
 	var channels []MultiChannelBackup
-	err := n.db.NewSelect().
+	err := Instance.NewSelect().
 		Model(&channels).
 		Scan(ctx, &channels)
 
@@ -117,11 +115,11 @@ func (n *NodewatcherDB) FindAllMultiChannelBackups(ctx context.Context) ([]Multi
 }
 
 // InsertMultiChannelBackup adds a static channel backup of all channels to the database
-func (n *NodewatcherDB) InsertMultiChannelBackup(backup string, pubkey string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+func InsertMultiChannelBackup(backup string, pubkey string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
 	defer cancel()
 
-	nodeFromDB, err := n.FindNodeByPubkey(pubkey)
+	nodeFromDB, err := FindNodeByPubkey(pubkey)
 	if err != nil {
 		return err
 	}
@@ -132,7 +130,7 @@ func (n *NodewatcherDB) InsertMultiChannelBackup(backup string, pubkey string) e
 		NodeID:    nodeFromDB.ID,
 		CreatedAt: time.Now(),
 	}
-	_, err = n.db.NewInsert().
+	_, err = Instance.NewInsert().
 		Model(multiBackup).
 		Exec(ctx)
 
@@ -140,18 +138,18 @@ func (n *NodewatcherDB) InsertMultiChannelBackup(backup string, pubkey string) e
 }
 
 // FindMultiChannelBackupByPubkey gets the most recent multi-channel backup from the db
-func (n *NodewatcherDB) FindMultiChannelBackupByPubkey(pubkey string) (MultiChannelBackup, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+func FindMultiChannelBackupByPubkey(pubkey string) (MultiChannelBackup, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
 	defer cancel()
 
 	var mc MultiChannelBackup
 
-	nodeFromDB, err := n.FindNodeByPubkey(pubkey)
+	nodeFromDB, err := FindNodeByPubkey(pubkey)
 	if err != nil {
 		return mc, err
 	}
 
-	err = n.db.NewSelect().
+	err = Instance.NewSelect().
 		Model(&mc).
 		Where("node_id = ?", nodeFromDB.ID).
 		OrderExpr("created_at DESC").
@@ -162,11 +160,11 @@ func (n *NodewatcherDB) FindMultiChannelBackupByPubkey(pubkey string) (MultiChan
 }
 
 // InsertUser adds a lightning node to the database
-func (n *NodewatcherDB) InsertUser(user *User) error {
+func InsertUser(user *User) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
 	defer cancel()
 
-	_, err := n.db.NewInsert().
+	_, err := Instance.NewInsert().
 		Model(user).
 		On("conflict (\"email\") do nothing").
 		Exec(ctx)
@@ -175,12 +173,12 @@ func (n *NodewatcherDB) InsertUser(user *User) error {
 }
 
 // FindUserByEmail gets user from the db
-func (n *NodewatcherDB) FindUserByEmail(email string) (User, error) {
+func FindUserByEmail(email string) (User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
 	defer cancel()
 
 	var user User
-	err := n.db.NewSelect().
+	err := Instance.NewSelect().
 		Model(&user).
 		Where("email = ?", email).
 		Scan(ctx, &user)
@@ -189,9 +187,9 @@ func (n *NodewatcherDB) FindUserByEmail(email string) (User, error) {
 }
 
 // FindAllUsers gets users from the db
-func (n *NodewatcherDB) FindAllUsers(ctx context.Context) ([]User, error) {
+func FindAllUsers(ctx context.Context) ([]User, error) {
 	var users []User
-	err := n.db.NewSelect().
+	err := Instance.NewSelect().
 		Model(&users).
 		Scan(ctx, &users)
 
