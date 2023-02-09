@@ -6,9 +6,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
+	"github.com/mvpratt/nodewatcher/internal/controllers"
 	"github.com/mvpratt/nodewatcher/internal/db"
 	"github.com/mvpratt/nodewatcher/internal/graph/model"
+	"github.com/mvpratt/nodewatcher/internal/middlewares"
 	"github.com/mvpratt/nodewatcher/internal/util"
 )
 
@@ -93,14 +95,21 @@ func main() {
 	nwDB.EnableDebugLogs()
 	nwDB.RunMigrations()
 
-	r := mux.NewRouter()
+	router := initRouter()
+	router.Run(":8000")
 
-	r.HandleFunc("/channels", getChannels).Methods("GET")
-	r.HandleFunc("/nodes", getNodes).Methods("GET")
-	r.HandleFunc("/nodes", createNode).Methods("POST")
-	r.HandleFunc("/multi-channel-backups", getMultiChannelBackups).Methods("GET")
-	r.HandleFunc("/users", getUsers).Methods("GET")
-	r.HandleFunc("/users", createUser).Methods("POST")
+}
 
-	log.Fatal(http.ListenAndServe(":8000", r))
+func initRouter() *gin.Engine {
+	router := gin.Default()
+	api := router.Group("/api")
+	{
+		api.POST("/token", controllers.GenerateToken)
+		api.POST("user/register", controllers.RegisterUser)
+		secured := api.Group("/secured").Use(middlewares.Auth())
+		{
+			secured.GET("/ping", controllers.Ping)
+		}
+	}
+	return router
 }
