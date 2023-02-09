@@ -1,4 +1,4 @@
-CREATE SEQUENCE IF NOT EXISTS users_id_seq;
+CREATE SEQUENCE IF NOT EXISTS "users_id_seq";
 
 --migration:split
 CREATE TABLE "public"."users" (

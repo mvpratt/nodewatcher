@@ -35,7 +35,7 @@ func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) 
 		Pubkey:   input.Pubkey,
 		Macaroon: input.Macaroon,
 	}
-	err := r.DB.InsertNode(dbNode)
+	err := db.InsertNode(dbNode)
 	if err != nil {
 		log.Print(err.Error())
 	}
@@ -55,7 +55,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) 
 		Email:    input.Email,
 		Password: input.Password,
 	}
-	err := r.DB.InsertUser(dbUser)
+	err := db.InsertUser(dbUser)
 	if err != nil {
 		log.Print(err.Error())
 	}
@@ -64,7 +64,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) 
 
 // Nodes is the resolver for the nodes field.
 func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
-	nodes, err := r.DB.FindAllNodes(ctx)
+	nodes, err := db.FindAllNodes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
 
 // Channels is the resolver for the channels field.
 func (r *queryResolver) Channels(ctx context.Context) ([]*model.Channel, error) {
-	channels, err := r.DB.FindAllChannels(ctx)
+	channels, err := db.FindAllChannels(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (r *queryResolver) Channels(ctx context.Context) ([]*model.Channel, error) 
 
 // MultiChannelBackups is the resolver for the multi_channel_backups field.
 func (r *queryResolver) MultiChannelBackups(ctx context.Context) ([]*model.MultiChannelBackup, error) {
-	channels, err := r.DB.FindAllMultiChannelBackups(ctx)
+	channels, err := db.FindAllMultiChannelBackups(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (r *queryResolver) MultiChannelBackups(ctx context.Context) ([]*model.Multi
 
 // Users is the resolver for the users field.
 func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
-	users, err := r.DB.FindAllUsers(ctx)
+	users, err := db.FindAllUsers(ctx)
 	if err != nil {
 		return nil, err
 	}

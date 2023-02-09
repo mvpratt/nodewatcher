@@ -13,7 +13,7 @@ import (
 )
 
 // SaveChannelBackups ...
-func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client lndclient.LightningClient, nwDB db.NodewatcherDB) {
+func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client lndclient.LightningClient) {
 	for {
 		fmt.Println("\nSaving channel backups ...")
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -24,7 +24,7 @@ func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client 
 			log.Print(err.Error())
 		}
 		for _, item := range channels {
-			err := nwDB.InsertChannel(item, node.Pubkey)
+			err := db.InsertChannel(item, node.Pubkey)
 			if err != nil {
 				log.Print(err.Error())
 			}
@@ -37,7 +37,7 @@ func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client 
 		}
 
 		// mulitchannel backup
-		err = nwDB.InsertMultiChannelBackup(base64.StdEncoding.EncodeToString(chanBackups), node.Pubkey)
+		err = db.InsertMultiChannelBackup(base64.StdEncoding.EncodeToString(chanBackups), node.Pubkey)
 		if err != nil {
 			log.Print(err.Error())
 		}

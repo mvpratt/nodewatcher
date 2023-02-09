@@ -1,7 +1,8 @@
 cmd/nw/nw
 cmd/nwapi/nwapi
+cmd/rest-api/rest-api
 env*
-creds/tls.cert
+tls.cert
 draft
 generated.go
 models_gen.go

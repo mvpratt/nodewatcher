@@ -16,7 +16,7 @@ import (
 
 func getNodes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	nodes, err := nwDB.FindAllNodes(context.Background())
+	nodes, err := db.FindAllNodes(context.Background())
 	if err != nil {
 		log.Print(err)
 	}
@@ -25,7 +25,7 @@ func getNodes(w http.ResponseWriter, r *http.Request) {
 
 func getChannels(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	channels, err := nwDB.FindAllChannels(context.Background())
+	channels, err := db.FindAllChannels(context.Background())
 	if err != nil {
 		log.Print(err)
 	}
@@ -34,7 +34,7 @@ func getChannels(w http.ResponseWriter, r *http.Request) {
 
 func getUsers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	users, err := nwDB.FindAllUsers(context.Background())
+	users, err := db.FindAllUsers(context.Background())
 	if err != nil {
 		log.Print(err)
 	}
@@ -52,7 +52,7 @@ func createNode(w http.ResponseWriter, r *http.Request) {
 		Pubkey:   node.Pubkey,
 		Macaroon: node.Macaroon,
 	}
-	nwDB.InsertNode(dbNode)
+	db.InsertNode(dbNode)
 	json.NewEncoder(w).Encode(node)
 }
 
@@ -65,20 +65,18 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		Email:    user.Email,
 		Password: user.Password,
 	}
-	nwDB.InsertUser(dbUser)
+	db.InsertUser(dbUser)
 	json.NewEncoder(w).Encode(user)
 }
 
 func getMultiChannelBackups(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	backups, err := nwDB.FindAllMultiChannelBackups(context.Background())
+	backups, err := db.FindAllMultiChannelBackups(context.Background())
 	if err != nil {
 		log.Print(err)
 	}
 	json.NewEncoder(w).Encode(backups)
 }
-
-var nwDB db.NodewatcherDB
 
 func main() {
 
@@ -90,14 +88,12 @@ func main() {
 		DatabaseName: util.RequireEnvVar("POSTGRES_DB"),
 	}
 
-	nwDB = db.NodewatcherDB{}
-	nwDB.ConnectToDB(dbParams)
-	nwDB.EnableDebugLogs()
-	nwDB.RunMigrations()
+	db.ConnectToDB(dbParams)
+	db.EnableDebugLogs()
+	db.RunMigrations()
 
 	router := initRouter()
 	router.Run(":8000")
-
 }
 
 func initRouter() *gin.Engine {
