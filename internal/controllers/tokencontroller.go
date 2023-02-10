@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +13,7 @@ type TokenRequest struct {
 	Password string `json:"password"`
 }
 
+// GenerateToken returns a JWT that is good for X hours
 func GenerateToken(context *gin.Context) {
 	var request TokenRequest
 
@@ -22,9 +22,8 @@ func GenerateToken(context *gin.Context) {
 		context.Abort()
 		return
 	}
-	// check if email exists and password is correct
+
 	user, err := db.FindUserByEmail(request.Email)
-	log.Println(user)
 
 	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

@@ -57,11 +57,11 @@ func CreateNode(context *gin.Context) {
 		return
 	}
 	context.JSON(http.StatusCreated, gin.H{
-		"userId":   node.ID,
+		"id":       node.ID,
 		"url":      node.URL,
 		"alias":    node.Alias,
-		"Macaroon": node.Macaroon,
-		"Pubkey":   node.Pubkey,
+		"macaroon": node.Macaroon,
+		"pubkey":   node.Pubkey,
 	})
 }
 
