@@ -1,9 +1,6 @@
 package controllers
 
 import (
-	"context"
-	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +15,7 @@ type MultiChannelBackupRequest struct {
 	Email string `json:"email"`
 }
 
+// GetNodes returns the node(s) belonging to the user
 func GetNodes(context *gin.Context) {
 	var request NodeRequest
 
@@ -77,15 +75,7 @@ func CreateNode(context *gin.Context) {
 	})
 }
 
-func GetMultiChannelBackups(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	backups, err := db.FindAllMultiChannelBackups(context.Background())
-	if err != nil {
-		log.Print(err)
-	}
-	json.NewEncoder(w).Encode(backups)
-}
-
+// GetMultiChannelBackup returns the most recent backup
 func GetMultiChannelBackup(context *gin.Context) { // todo - return most recent backup
 	var request MultiChannelBackupRequest
 
