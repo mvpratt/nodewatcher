@@ -1,7 +1,6 @@
 package db
 
 import (
-	"log"
 	"time"
 
 	"github.com/uptrace/bun"
@@ -47,8 +46,6 @@ func (user *User) HashPassword(password string) error {
 }
 
 func (user *User) CheckPassword(providedPassword string) error {
-	log.Printf("provide pass: %s", providedPassword)
-	log.Printf("user pass: %s", user.Password)
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(providedPassword))
 	if err != nil {
 		return err

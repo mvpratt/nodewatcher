@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,37 +13,31 @@ type TokenRequest struct {
 	Password string `json:"password"`
 }
 
+// GenerateToken returns a JWT that is good for X hours
 func GenerateToken(context *gin.Context) {
-	log.Println("generate token")
 	var request TokenRequest
-	var user db.User
 
 	if err := context.ShouldBindJSON(&request); err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		context.Abort()
 		return
 	}
-	// check if email exists and password is correct
-	//user, err := nwDB.FindUserByEmail(user.Email)
 
-	user = db.User{
-		Email:    "email@email.com",
-		Password: "$2a$14$b6PRN7QIOGiTYsqvSZ8H8udeBaRtHwos09zijksU6qwVhwuxyyc1u",
+	user, err := db.FindUserByEmail(request.Email)
+
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		context.Abort()
+		return
 	}
 
-	// if err != nil {
-	// 	context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	// 	context.Abort()
-	// 	return
-	// }
-	log.Println("check password")
 	credentialError := user.CheckPassword(request.Password)
 	if credentialError != nil {
 		context.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		context.Abort()
 		return
 	}
-	log.Println("generate jwt")
+
 	tokenString, err := auth.GenerateJWT(user.Email)
 	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

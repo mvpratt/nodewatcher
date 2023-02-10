@@ -1,82 +1,12 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"log"
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/mvpratt/nodewatcher/internal/controllers"
 	"github.com/mvpratt/nodewatcher/internal/db"
-	"github.com/mvpratt/nodewatcher/internal/graph/model"
 	"github.com/mvpratt/nodewatcher/internal/middlewares"
 	"github.com/mvpratt/nodewatcher/internal/util"
 )
-
-func getNodes(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	nodes, err := db.FindAllNodes(context.Background())
-	if err != nil {
-		log.Print(err)
-	}
-	json.NewEncoder(w).Encode(nodes)
-}
-
-func getChannels(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	channels, err := db.FindAllChannels(context.Background())
-	if err != nil {
-		log.Print(err)
-	}
-	json.NewEncoder(w).Encode(channels)
-}
-
-func getUsers(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	users, err := db.FindAllUsers(context.Background())
-	if err != nil {
-		log.Print(err)
-	}
-	json.NewEncoder(w).Encode(users)
-}
-
-func createNode(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	var node model.Node
-	_ = json.NewDecoder(r.Body).Decode(&node)
-	dbNode := &db.Node{
-		ID:       0,
-		URL:      node.URL,
-		Alias:    node.Alias,
-		Pubkey:   node.Pubkey,
-		Macaroon: node.Macaroon,
-	}
-	db.InsertNode(dbNode)
-	json.NewEncoder(w).Encode(node)
-}
-
-func createUser(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	var user model.User
-	_ = json.NewDecoder(r.Body).Decode(&user)
-	dbUser := &db.User{
-		ID:       0,
-		Email:    user.Email,
-		Password: user.Password,
-	}
-	db.InsertUser(dbUser)
-	json.NewEncoder(w).Encode(user)
-}
-
-func getMultiChannelBackups(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	backups, err := db.FindAllMultiChannelBackups(context.Background())
-	if err != nil {
-		log.Print(err)
-	}
-	json.NewEncoder(w).Encode(backups)
-}
 
 func main() {
 
@@ -101,10 +31,12 @@ func initRouter() *gin.Engine {
 	api := router.Group("/api")
 	{
 		api.POST("/token", controllers.GenerateToken)
-		api.POST("user/register", controllers.RegisterUser)
+		api.POST("/user/register", controllers.RegisterUser)
 		secured := api.Group("/secured").Use(middlewares.Auth())
 		{
-			secured.GET("/ping", controllers.Ping)
+			secured.POST("/user/node", controllers.CreateNode)
+			secured.GET("/user/node", controllers.GetNodes)
+			secured.GET("/user/node/multi-channel-backup", controllers.GetMultiChannelBackup)
 		}
 	}
 	return router
