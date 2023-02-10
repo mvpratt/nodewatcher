@@ -19,6 +19,15 @@ func RegisterUser(context *gin.Context) {
 		context.Abort()
 		return
 	}
+
+	exists, _ := db.FindUserByEmail(user.Email)
+	if exists.Email == user.Email {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "user already exists"})
+		context.Abort()
+		return
+	}
+
+	user.ID = 0 // set to 0 so the db will auto-increment
 	err := db.InsertUser(&user)
 	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
