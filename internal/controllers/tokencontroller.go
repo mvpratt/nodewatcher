@@ -15,7 +15,6 @@ type TokenRequest struct {
 }
 
 func GenerateToken(context *gin.Context) {
-	log.Println("generate token")
 	var request TokenRequest
 
 	if err := context.ShouldBindJSON(&request); err != nil {
@@ -23,7 +22,6 @@ func GenerateToken(context *gin.Context) {
 		context.Abort()
 		return
 	}
-	log.Println("query db")
 	// check if email exists and password is correct
 	user, err := db.FindUserByEmail(request.Email)
 	log.Println(user)
@@ -33,14 +31,14 @@ func GenerateToken(context *gin.Context) {
 		context.Abort()
 		return
 	}
-	log.Println("check password")
+
 	credentialError := user.CheckPassword(request.Password)
 	if credentialError != nil {
 		context.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		context.Abort()
 		return
 	}
-	log.Println("generate jwt")
+
 	tokenString, err := auth.GenerateJWT(user.Email)
 	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
