@@ -10,21 +10,15 @@ import (
 	"github.com/mvpratt/nodewatcher/internal/db"
 )
 
-// func GetNodes(w http.ResponseWriter, r *http.Request) {
-// 	w.Header().Set("Content-Type", "application/json")
-// 	nodes, err := db.FindAllNodes(context.Background())
-// 	if err != nil {
-// 		log.Print(err)
-// 	}
-// 	json.NewEncoder(w).Encode(nodes)
-// }
-
 type NodeRequest struct {
 	Email string `json:"email"`
 }
 
+type MultiChannelBackupRequest struct {
+	Email string `json:"email"`
+}
+
 func GetNodes(context *gin.Context) {
-	log.Println("get nodes")
 	var request NodeRequest
 
 	if err := context.ShouldBindJSON(&request); err != nil {
@@ -32,11 +26,8 @@ func GetNodes(context *gin.Context) {
 		context.Abort()
 		return
 	}
-	log.Println("query db")
-	// check if email exists and password is correct
-	nodes, err := db.FindAllNodes(context)
-	log.Println(nodes)
 
+	nodes, err := db.FindAllNodes(context)
 	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		context.Abort()
@@ -45,11 +36,11 @@ func GetNodes(context *gin.Context) {
 
 	node := nodes[0]
 	context.JSON(http.StatusOK, gin.H{
-		"userId":   node.ID,
+		"id":       node.ID,
 		"url":      node.URL,
 		"alias":    node.Alias,
-		"Macaroon": node.Macaroon,
-		"Pubkey":   node.Pubkey})
+		"macaroon": node.Macaroon,
+		"pubkey":   node.Pubkey})
 }
 
 func CreateNode(context *gin.Context) {
@@ -70,7 +61,8 @@ func CreateNode(context *gin.Context) {
 		"url":      node.URL,
 		"alias":    node.Alias,
 		"Macaroon": node.Macaroon,
-		"Pubkey":   node.Pubkey})
+		"Pubkey":   node.Pubkey,
+	})
 }
 
 func GetMultiChannelBackups(w http.ResponseWriter, r *http.Request) {
@@ -80,4 +72,30 @@ func GetMultiChannelBackups(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 	}
 	json.NewEncoder(w).Encode(backups)
+}
+
+func GetMultiChannelBackup(context *gin.Context) { // todo - return most recent backup
+	var request MultiChannelBackupRequest
+
+	if err := context.ShouldBindJSON(&request); err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		context.Abort()
+		return
+	}
+
+	backups, err := db.FindAllMultiChannelBackups(context)
+
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		context.Abort()
+		return
+	}
+
+	backup := backups[0]
+	context.JSON(http.StatusOK, gin.H{
+		"id":         backup.ID,
+		"created_at": backup.CreatedAt,
+		"backup":     backup.Backup,
+		"node_id":    backup.NodeID,
+	})
 }

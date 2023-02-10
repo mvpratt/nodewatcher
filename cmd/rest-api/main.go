@@ -34,10 +34,9 @@ func initRouter() *gin.Engine {
 		api.POST("/user/register", controllers.RegisterUser)
 		secured := api.Group("/secured").Use(middlewares.Auth())
 		{
-			secured.GET("/ping", controllers.Ping)
 			secured.POST("/user/node", controllers.CreateNode)
 			secured.GET("/user/node", controllers.GetNodes)
-			//api.GET("/user/node/multi-channel-backups", controllers.GetMultiChannelBackups)
+			secured.GET("/user/node/multi-channel-backup", controllers.GetMultiChannelBackup)
 		}
 	}
 	return router
