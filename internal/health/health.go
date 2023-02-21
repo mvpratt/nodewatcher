@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/lightninglabs/lndclient"
@@ -13,6 +15,40 @@ import (
 	twilio "github.com/twilio/twilio-go"
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )
+
+type GithubLatestReleaseResponse struct {
+	TagName string `json:"tag_name"`
+}
+
+// Get latest release tag from Github
+func getLatestReleaseTag(org string, repo string) (string, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", org, repo)
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Println(err)
+		return "", err
+	}
+
+	var release GithubLatestReleaseResponse
+	err = json.NewDecoder(resp.Body).Decode(&release)
+	if err != nil {
+		log.Println(err)
+		return "", err
+	}
+
+	return release.TagName, nil
+}
+
+// Compare version strings
+// Assumes:
+//
+//	githubTag is of the form "v0.15.5-beta"
+//	lndVersionString is of the form "0.15.5-beta commit=v0.15.5-beta.f1"
+func compareVersions(githubTag string, lndVersionString string) bool {
+	githubTag = githubTag[1:]                                  // remove leading "v" from github tag
+	lndVersionString = strings.Split(lndVersionString, " ")[0] // remove trailing "commit=" from version string
+	return githubTag == lndVersionString
+}
 
 // Send a text message
 func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string) error {
@@ -43,6 +79,12 @@ func processGetInfoResponse(info *lndclient.Info) (string, error) {
 	}
 	if !info.SyncedToGraph {
 		return fmt.Sprintf("\n\nWARNING: Network graph is not fully synced."+
+			"\nDetails: %s", statusString), nil
+	}
+
+	latest, _ := getLatestReleaseTag("lightningnetwork", "lnd")
+	if !compareVersions(latest, info.Version) {
+		return fmt.Sprintf("\n\nWARNING: Lightning node is not running the latest version."+
 			"\nDetails: %s", statusString), nil
 	}
 
