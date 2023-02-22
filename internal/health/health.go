@@ -15,10 +15,12 @@ import (
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )
 
+// GithubLatestReleaseResponse is the response from the Github API
 type GithubLatestReleaseResponse struct {
 	TagName string `json:"tag_name"`
 }
 
+// SmsParams contains the parameters for sending an SMS message
 type SmsParams struct {
 	Enable           bool
 	To               string
@@ -28,6 +30,7 @@ type SmsParams struct {
 	TwilioAuthToken  string
 }
 
+// MonitorParams contains the parameters for monitoring an LND node
 type MonitorParams struct {
 	SMS        SmsParams
 	Interval   time.Duration
@@ -39,14 +42,12 @@ func getLatestReleaseTag(org string, repo string) (string, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", org, repo)
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Println(err)
 		return "", err
 	}
 
 	var release GithubLatestReleaseResponse
 	err = json.NewDecoder(resp.Body).Decode(&release)
 	if err != nil {
-		log.Println(err)
 		return "", err
 	}
 	return release.TagName, nil
@@ -74,31 +75,43 @@ func sendSMS(sms SmsParams, msg string) error {
 	if err != nil {
 		return fmt.Errorf("%s", err.Error())
 	}
-	log.Println("\nSMS sent successfully!")
 	return nil
 }
 
-func generateStatusMessage(info *lndclient.Info) (string, error) {
-	statusJSON, err := json.MarshalIndent(info, " ", "    ")
+func warning(warn string, status string) string {
+	return fmt.Sprintf("\n\nWARNING: %s\nDetails: %s", warn, status)
+}
+
+func isLatestVersion(info *lndclient.Info, status string) (bool, error) {
+	latest, err := getLatestReleaseTag("lightningnetwork", "lnd")
 	if err != nil {
-		log.Print(err.Error())
+		return false, err
+	}
+	if !compareVersions(latest, info.Version) {
+		return false, err
+	}
+	return true, nil
+}
+
+func generateStatusMessage(info *lndclient.Info) (string, error) {
+	infoJSON, err := json.MarshalIndent(info, " ", "    ")
+	if err != nil {
 		return "", err
 	}
-	statusString := string(statusJSON)
 
 	if !info.SyncedToChain {
-		return fmt.Sprintf("\n\nWARNING: Lightning node is not fully synced."+
-			"\nDetails: %s", statusString), nil
+		return warning("Lightning node is not fully synced.", string(infoJSON)), nil
 	}
 	if !info.SyncedToGraph {
-		return fmt.Sprintf("\n\nWARNING: Network graph is not fully synced."+
-			"\nDetails: %s", statusString), nil
+		return warning("Network graph is not fully synced.", string(infoJSON)), nil
 	}
 
-	latest, _ := getLatestReleaseTag("lightningnetwork", "lnd")
-	if !compareVersions(latest, info.Version) {
-		return fmt.Sprintf("\n\nWARNING: Lightning node is not running the latest version."+
-			"\nDetails: %s", statusString), nil
+	isLatest, err := isLatestVersion(info, string(infoJSON))
+	if err != nil {
+		return "", err
+	}
+	if !isLatest {
+		return warning("Lightning node is not running the latest version", info.Version), nil
 	}
 
 	// Check how long since last block. Convert unix time string into base10, 64-bit int
@@ -109,16 +122,11 @@ func generateStatusMessage(info *lndclient.Info) (string, error) {
 			"\nLast block received %s ago", info.Alias, timeSinceLastBlock), nil
 }
 
-// getnodeInfo - Get node info from lnd
+// getNodeInfo - Get node info from lnd
 func getNodeInfo(client lndclient.LightningClient) (*lndclient.Info, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-
-	nodeInfo, err := client.GetInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return nodeInfo, nil
+	return client.GetInfo(ctx)
 }
 
 // Monitor - Once a day, send a text message with lightning node status if params.SMS.Enable is true
@@ -148,6 +156,7 @@ func Monitor(params MonitorParams, client lndclient.LightningClient) {
 			if err != nil {
 				log.Print(err.Error())
 			} else {
+				log.Println("\nSMS sent successfully!")
 				alreadySent = true
 			}
 		}
