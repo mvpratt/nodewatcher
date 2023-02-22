@@ -11,13 +11,27 @@ import (
 	"time"
 
 	"github.com/lightninglabs/lndclient"
-	"github.com/mvpratt/nodewatcher/internal/util"
 	twilio "github.com/twilio/twilio-go"
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )
 
 type GithubLatestReleaseResponse struct {
 	TagName string `json:"tag_name"`
+}
+
+type SmsParams struct {
+	Enable           bool
+	To               string
+	From             string
+	TwilioClient     *twilio.RestClient
+	TwilioAccountSID string
+	TwilioAuthToken  string
+}
+
+type MonitorParams struct {
+	SMS        SmsParams
+	Interval   time.Duration
+	NotifyTime int
 }
 
 // Get latest release tag from Github
@@ -35,7 +49,6 @@ func getLatestReleaseTag(org string, repo string) (string, error) {
 		log.Println(err)
 		return "", err
 	}
-
 	return release.TagName, nil
 }
 
@@ -51,13 +64,13 @@ func compareVersions(githubTag string, lndVersionString string) bool {
 }
 
 // Send a text message
-func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string) error {
+func sendSMS(sms SmsParams, msg string) error {
 	params := &openapi.CreateMessageParams{}
-	params.SetTo(to)
-	params.SetFrom(from)
+	params.SetTo(sms.To)
+	params.SetFrom(sms.From)
 	params.SetBody(msg)
 
-	_, err := twilioClient.Api.CreateMessage(params)
+	_, err := sms.TwilioClient.Api.CreateMessage(params)
 	if err != nil {
 		return fmt.Errorf("%s", err.Error())
 	}
@@ -65,7 +78,7 @@ func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string
 	return nil
 }
 
-func processGetInfoResponse(info *lndclient.Info) (string, error) {
+func generateStatusMessage(info *lndclient.Info) (string, error) {
 	statusJSON, err := json.MarshalIndent(info, " ", "    ")
 	if err != nil {
 		log.Print(err.Error())
@@ -96,62 +109,51 @@ func processGetInfoResponse(info *lndclient.Info) (string, error) {
 			"\nLast block received %s ago", info.Alias, timeSinceLastBlock), nil
 }
 
-// Monitor - Once a day, send a text message with lightning node status if SMS_ENABLE is true
-func Monitor(statusPollInterval time.Duration, client lndclient.LightningClient) {
-	const statusNotifyTime = 1 // when time = 01:00 UTC
+// getnodeInfo - Get node info from lnd
+func getNodeInfo(client lndclient.LightningClient) (*lndclient.Info, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
-	smsEnable := util.RequireEnvVar("SMS_ENABLE")
-	var smsTo, smsFrom string
-	var twilioClient *twilio.RestClient
-
-	if smsEnable == "TRUE" {
-		smsTo = util.RequireEnvVar("TO_PHONE_NUMBER")
-		smsFrom = util.RequireEnvVar("TWILIO_PHONE_NUMBER")
-		_ = util.RequireEnvVar("TWILIO_ACCOUNT_SID")
-		_ = util.RequireEnvVar("TWILIO_AUTH_TOKEN")
-		twilioClient = twilio.NewRestClient()
-	} else {
-		log.Println("\nWARNING: Text messages disabled. " +
-			"Set environment variable SMS_ENABLE to TRUE to enable SMS status updates")
+	nodeInfo, err := client.GetInfo(ctx)
+	if err != nil {
+		return nil, err
 	}
+	return nodeInfo, nil
+}
 
-	smsAlreadySent := false
+// Monitor - Once a day, send a text message with lightning node status if params.SMS.Enable is true
+func Monitor(params MonitorParams, client lndclient.LightningClient) {
+	alreadySent := false
 
 	for {
 		log.Println("\nChecking node status ...")
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel() // todo - defer will never run (endless loop)
+		time.Sleep(params.Interval)
 
-		nodeInfo, err := client.GetInfo(ctx)
+		nodeInfo, err := getNodeInfo(client)
 		if err != nil {
 			log.Print(err.Error())
-			time.Sleep(statusPollInterval * time.Second)
 			continue // no point in processing info response
 		}
 
-		textMsg, err := processGetInfoResponse(nodeInfo)
+		statusMsg, err := generateStatusMessage(nodeInfo)
 		if err != nil {
 			log.Print(err.Error())
-			time.Sleep(statusPollInterval * time.Second)
 			continue // no point in processing info response
 		}
 
-		isTimeToSendStatus := (time.Now().Hour() == statusNotifyTime)
+		sendWindow := time.Now().Hour() == params.NotifyTime // 1-hour notify window
 
-		if smsEnable == "TRUE" && isTimeToSendStatus && !smsAlreadySent {
-			err := sendSMS(twilioClient, textMsg, smsTo, smsFrom)
+		if sendWindow && params.SMS.Enable && !alreadySent {
+			err := sendSMS(params.SMS, statusMsg)
 			if err != nil {
 				log.Print(err.Error())
 			} else {
-				smsAlreadySent = true
+				alreadySent = true
 			}
 		}
-
-		// if time to send status window has passed, reset the smsAlreadySent boolean
-		if !isTimeToSendStatus && smsAlreadySent {
-			smsAlreadySent = false
+		if !sendWindow {
+			alreadySent = false
 		}
-		log.Println(textMsg)
-		time.Sleep(statusPollInterval * time.Second)
+		log.Println(statusMsg)
 	}
 }

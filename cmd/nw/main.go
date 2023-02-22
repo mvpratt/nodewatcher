@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/hex"
 	"log"
+	"time"
 
 	"github.com/lightninglabs/lndclient"
 	"github.com/mvpratt/nodewatcher/internal/backup"
 	"github.com/mvpratt/nodewatcher/internal/db"
 	"github.com/mvpratt/nodewatcher/internal/health"
 	"github.com/mvpratt/nodewatcher/internal/util"
+	"github.com/twilio/twilio-go"
 )
 
 // Nodewatcher runs two processes:
@@ -76,11 +78,28 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	const pollInterval = 60 // 1 minute
+	var smsParams health.SmsParams
+	smsParams.Enable = util.RequireEnvVar("SMS_ENABLE") == "TRUE"
+
+	if smsParams.Enable {
+		smsParams.To = util.RequireEnvVar("TO_PHONE_NUMBER")
+		smsParams.From = util.RequireEnvVar("TWILIO_PHONE_NUMBER")
+		smsParams.TwilioClient = twilio.NewRestClient()
+		smsParams.TwilioAccountSID = util.RequireEnvVar("TWILIO_ACCOUNT_SID")
+		smsParams.TwilioAuthToken = util.RequireEnvVar("TWILIO_AUTH_TOKEN")
+	} else {
+		log.Println("\nWARNING: Text messages disabled. " +
+			"Set environment variable SMS_ENABLE to TRUE to enable SMS status updates")
+	}
+
+	monitorParams := health.MonitorParams{
+		Interval:   60 * time.Second,
+		NotifyTime: 1, // when time = 01:00 UTC
+	}
 
 	done := make(chan bool)
-	go health.Monitor(pollInterval, lndClient)
-	go backup.SaveChannelBackups(pollInterval, node, lndClient)
+	go health.Monitor(monitorParams, lndClient)
+	go backup.SaveChannelBackups(monitorParams.Interval, node, lndClient)
 
 	<-done // Block forever
 }
