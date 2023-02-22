@@ -78,11 +78,11 @@ func sendSMS(sms SmsParams, msg string) error {
 	return nil
 }
 
-func warning(warn string, status string) string {
-	return fmt.Sprintf("\n\nWARNING: %s\nDetails: %s", warn, status)
+func warning(warn string) string {
+	return fmt.Sprintf("\n\nWARNING: %s", warn)
 }
 
-func isLatestVersion(info *lndclient.Info, status string) (bool, error) {
+func isLatestVersion(info *lndclient.Info) (bool, error) {
 	latest, err := getLatestReleaseTag("lightningnetwork", "lnd")
 	if err != nil {
 		return false, err
@@ -94,24 +94,19 @@ func isLatestVersion(info *lndclient.Info, status string) (bool, error) {
 }
 
 func generateStatusMessage(info *lndclient.Info) (string, error) {
-	infoJSON, err := json.MarshalIndent(info, " ", "    ")
-	if err != nil {
-		return "", err
-	}
-
 	if !info.SyncedToChain {
-		return warning("Lightning node is not fully synced.", string(infoJSON)), nil
+		return warning("Lightning node is not fully synced."), nil
 	}
 	if !info.SyncedToGraph {
-		return warning("Network graph is not fully synced.", string(infoJSON)), nil
+		return warning("Network graph is not fully synced."), nil
 	}
 
-	isLatest, err := isLatestVersion(info, string(infoJSON))
+	isLatest, err := isLatestVersion(info)
 	if err != nil {
 		return "", err
 	}
 	if !isLatest {
-		return warning("Lightning node is not running the latest version", info.Version), nil
+		return warning("Lightning node is not running the latest version."), nil
 	}
 
 	// Check how long since last block. Convert unix time string into base10, 64-bit int
@@ -151,6 +146,7 @@ func Monitor(params MonitorParams, client lndclient.LightningClient) {
 
 		sendWindow := time.Now().Hour() == params.NotifyTime // 1-hour notify window
 
+		// todo - check for env vars before trying to send SMS
 		if sendWindow && params.SMS.Enable && !alreadySent {
 			err := sendSMS(params.SMS, statusMsg)
 			if err != nil {
