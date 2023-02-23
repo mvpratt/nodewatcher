@@ -10,9 +10,10 @@ import (
 
 	"github.com/lightninglabs/lndclient"
 	"github.com/mvpratt/nodewatcher/internal/db"
+	"github.com/mvpratt/nodewatcher/internal/util"
 )
 
-func getChannels(node *db.Node, client lndclient.LightningClient) error {
+func getChannels(node db.Node, client lndclient.LightningClient) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -29,7 +30,7 @@ func getChannels(node *db.Node, client lndclient.LightningClient) error {
 	return nil
 }
 
-func getMultiChannelBackups(node *db.Node, client lndclient.LightningClient) error {
+func getMultiChannelBackups(node db.Node, client lndclient.LightningClient) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -45,16 +46,17 @@ func getMultiChannelBackups(node *db.Node, client lndclient.LightningClient) err
 }
 
 // SaveChannelBackups ...
-func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client lndclient.LightningClient) {
+func SaveChannelBackups(statusPollInterval time.Duration, node db.Node) {
+	lndClient := util.GetLndClient(node)
 	for {
 		fmt.Println("\nSaving channel backups ...")
 
-		err := getChannels(node, client)
+		err := getChannels(node, lndClient)
 		if err != nil {
 			log.Print(err.Error())
 		}
 
-		err = getMultiChannelBackups(node, client)
+		err = getMultiChannelBackups(node, lndClient)
 		if err != nil {
 			log.Print(err.Error())
 		}
