@@ -25,15 +25,18 @@ type Node struct {
 	Alias    string `bun:"alias"`
 	Pubkey   string `bun:"pubkey"`
 	Macaroon string `bun:"macaroon"`
+	UserID   int64  `bun:"user_id"`
 }
 
 // User is a
 type User struct {
 	bun.BaseModel `bun:"table:users"`
 
-	ID       int64  `bun:"id,pk,autoincrement"`
-	Email    string `bun:"email,unique"`
-	Password string `bun:"password"`
+	ID          int64  `bun:"id,pk,autoincrement"`
+	Email       string `bun:"email,unique"`
+	Password    string `bun:"password"`
+	PhoneNumber string `bun:"phone_number"`
+	SmsEnabled  bool   `bun:"sms_enabled"`
 }
 
 func (user *User) HashPassword(password string) error {
@@ -63,6 +66,7 @@ type Channel struct {
 	NodeID      int64  `bun:"node_id"`
 }
 
+// todo - remove channel backup - unused
 // ChannelBackup is an encrypted static channel backup of a single lightning channel
 type ChannelBackup struct {
 	bun.BaseModel `bun:"table:channel_backups"`

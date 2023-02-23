@@ -186,6 +186,20 @@ func FindUserByEmail(email string) (User, error) {
 	return user, err
 }
 
+// FindUserByID gets user from the db
+func FindUserByID(id int64) (User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
+	defer cancel()
+
+	var user User
+	err := Instance.NewSelect().
+		Model(&user).
+		Where("id = ?", id).
+		Scan(ctx, &user)
+
+	return user, err
+}
+
 // FindAllUsers gets users from the db
 func FindAllUsers(ctx context.Context) ([]User, error) {
 	var users []User
