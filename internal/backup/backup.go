@@ -12,43 +12,60 @@ import (
 	"github.com/mvpratt/nodewatcher/internal/db"
 )
 
+func getChannels(node *db.Node, client lndclient.LightningClient) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	channels, err := client.ListChannels(ctx, true, false)
+	if err != nil {
+		return err
+	}
+	for _, item := range channels {
+		err := db.InsertChannel(item, node.Pubkey)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getMultiChannelBackups(node *db.Node, client lndclient.LightningClient) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	chanBackups, err := client.ChannelBackups(ctx)
+	if err != nil {
+		return err
+	}
+	err = db.InsertMultiChannelBackup(base64.StdEncoding.EncodeToString(chanBackups), node.Pubkey)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // SaveChannelBackups ...
 func SaveChannelBackups(statusPollInterval time.Duration, node *db.Node, client lndclient.LightningClient) {
 	for {
 		fmt.Println("\nSaving channel backups ...")
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel() // todo - defer will never run (endless loop)
 
-		channels, err := client.ListChannels(ctx, true, false)
-		if err != nil {
-			log.Print(err.Error())
-		}
-		for _, item := range channels {
-			err := db.InsertChannel(item, node.Pubkey)
-			if err != nil {
-				log.Print(err.Error())
-			}
-		}
-
-		// static channel backup (multi)
-		chanBackups, err := client.ChannelBackups(ctx)
+		err := getChannels(node, client)
 		if err != nil {
 			log.Print(err.Error())
 		}
 
-		// mulitchannel backup
-		err = db.InsertMultiChannelBackup(base64.StdEncoding.EncodeToString(chanBackups), node.Pubkey)
+		err = getMultiChannelBackups(node, client)
 		if err != nil {
 			log.Print(err.Error())
 		}
-
-		// WIP
-		// get backup from db
-		// multiBackup, err := db.FindMultiChannelBackupByPubkey(node.Pubkey, depotDB)
-		// if err != nil {
-		// 	log.Print(err.Error())
-		// }
 
 		time.Sleep(statusPollInterval * time.Second)
 	}
 }
+
+// WIP
+// get backup from db
+// multiBackup, err := db.FindMultiChannelBackupByPubkey(node.Pubkey, depotDB)
+// if err != nil {
+// 	log.Print(err.Error())
+// }

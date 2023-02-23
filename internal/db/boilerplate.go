@@ -41,8 +41,8 @@ func RunMigrations() error {
 	return nil
 }
 
-// ConnectToDB connects to a Postgres database with the credentials provided
-func ConnectToDB(params *ConnectionParams) {
+// Connect connects to a Postgres database with the credentials provided
+func Connect(params *ConnectionParams) {
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", params.User, params.Password, params.Host, params.Port, params.DatabaseName)
 	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
 	Instance = bun.NewDB(sqldb, pgdialect.New())

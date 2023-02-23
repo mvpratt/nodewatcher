@@ -29,7 +29,7 @@ func main() {
 		DatabaseName: util.RequireEnvVar("POSTGRES_DB"),
 	}
 
-	db.ConnectToDB(dbParams)
+	db.Connect(dbParams)
 	db.EnableDebugLogs()
 	db.RunMigrations()
 

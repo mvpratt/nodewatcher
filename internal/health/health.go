@@ -11,13 +11,30 @@ import (
 	"time"
 
 	"github.com/lightninglabs/lndclient"
-	"github.com/mvpratt/nodewatcher/internal/util"
 	twilio "github.com/twilio/twilio-go"
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )
 
+// GithubLatestReleaseResponse is the response from the Github API
 type GithubLatestReleaseResponse struct {
 	TagName string `json:"tag_name"`
+}
+
+// SmsParams contains the parameters for sending an SMS message
+type SmsParams struct {
+	Enable           bool
+	To               string
+	From             string
+	TwilioClient     *twilio.RestClient
+	TwilioAccountSID string
+	TwilioAuthToken  string
+}
+
+// MonitorParams contains the parameters for monitoring an LND node
+type MonitorParams struct {
+	SMS        SmsParams
+	Interval   time.Duration
+	NotifyTime int
 }
 
 // Get latest release tag from Github
@@ -25,17 +42,14 @@ func getLatestReleaseTag(org string, repo string) (string, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", org, repo)
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Println(err)
 		return "", err
 	}
 
 	var release GithubLatestReleaseResponse
 	err = json.NewDecoder(resp.Body).Decode(&release)
 	if err != nil {
-		log.Println(err)
 		return "", err
 	}
-
 	return release.TagName, nil
 }
 
@@ -51,41 +65,48 @@ func compareVersions(githubTag string, lndVersionString string) bool {
 }
 
 // Send a text message
-func sendSMS(twilioClient *twilio.RestClient, msg string, to string, from string) error {
+func sendSMS(sms SmsParams, msg string) error {
 	params := &openapi.CreateMessageParams{}
-	params.SetTo(to)
-	params.SetFrom(from)
+	params.SetTo(sms.To)
+	params.SetFrom(sms.From)
 	params.SetBody(msg)
 
-	_, err := twilioClient.Api.CreateMessage(params)
+	_, err := sms.TwilioClient.Api.CreateMessage(params)
 	if err != nil {
 		return fmt.Errorf("%s", err.Error())
 	}
-	log.Println("\nSMS sent successfully!")
 	return nil
 }
 
-func processGetInfoResponse(info *lndclient.Info) (string, error) {
-	statusJSON, err := json.MarshalIndent(info, " ", "    ")
-	if err != nil {
-		log.Print(err.Error())
-		return "", err
-	}
-	statusString := string(statusJSON)
+func warning(warn string) string {
+	return fmt.Sprintf("\n\nWARNING: %s", warn)
+}
 
+func isLatestVersion(info *lndclient.Info) (bool, error) {
+	latest, err := getLatestReleaseTag("lightningnetwork", "lnd")
+	if err != nil {
+		return false, err
+	}
+	if !compareVersions(latest, info.Version) {
+		return false, err
+	}
+	return true, nil
+}
+
+func generateStatusMessage(info *lndclient.Info) (string, error) {
 	if !info.SyncedToChain {
-		return fmt.Sprintf("\n\nWARNING: Lightning node is not fully synced."+
-			"\nDetails: %s", statusString), nil
+		return warning("Lightning node is not fully synced."), nil
 	}
 	if !info.SyncedToGraph {
-		return fmt.Sprintf("\n\nWARNING: Network graph is not fully synced."+
-			"\nDetails: %s", statusString), nil
+		return warning("Network graph is not fully synced."), nil
 	}
 
-	latest, _ := getLatestReleaseTag("lightningnetwork", "lnd")
-	if !compareVersions(latest, info.Version) {
-		return fmt.Sprintf("\n\nWARNING: Lightning node is not running the latest version."+
-			"\nDetails: %s", statusString), nil
+	isLatest, err := isLatestVersion(info)
+	if err != nil {
+		return "", err
+	}
+	if !isLatest {
+		return warning("Lightning node is not running the latest version."), nil
 	}
 
 	// Check how long since last block. Convert unix time string into base10, 64-bit int
@@ -96,62 +117,48 @@ func processGetInfoResponse(info *lndclient.Info) (string, error) {
 			"\nLast block received %s ago", info.Alias, timeSinceLastBlock), nil
 }
 
-// Monitor - Once a day, send a text message with lightning node status if SMS_ENABLE is true
-func Monitor(statusPollInterval time.Duration, client lndclient.LightningClient) {
-	const statusNotifyTime = 1 // when time = 01:00 UTC
+// getNodeInfo - Get node info from lnd
+func getNodeInfo(client lndclient.LightningClient) (*lndclient.Info, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	return client.GetInfo(ctx)
+}
 
-	smsEnable := util.RequireEnvVar("SMS_ENABLE")
-	var smsTo, smsFrom string
-	var twilioClient *twilio.RestClient
-
-	if smsEnable == "TRUE" {
-		smsTo = util.RequireEnvVar("TO_PHONE_NUMBER")
-		smsFrom = util.RequireEnvVar("TWILIO_PHONE_NUMBER")
-		_ = util.RequireEnvVar("TWILIO_ACCOUNT_SID")
-		_ = util.RequireEnvVar("TWILIO_AUTH_TOKEN")
-		twilioClient = twilio.NewRestClient()
-	} else {
-		log.Println("\nWARNING: Text messages disabled. " +
-			"Set environment variable SMS_ENABLE to TRUE to enable SMS status updates")
-	}
-
-	smsAlreadySent := false
+// Monitor - Once a day, send a text message with lightning node status if params.SMS.Enable is true
+func Monitor(params MonitorParams, client lndclient.LightningClient) {
+	alreadySent := false
 
 	for {
 		log.Println("\nChecking node status ...")
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel() // todo - defer will never run (endless loop)
+		time.Sleep(params.Interval)
 
-		nodeInfo, err := client.GetInfo(ctx)
+		nodeInfo, err := getNodeInfo(client)
 		if err != nil {
 			log.Print(err.Error())
-			time.Sleep(statusPollInterval * time.Second)
 			continue // no point in processing info response
 		}
 
-		textMsg, err := processGetInfoResponse(nodeInfo)
+		statusMsg, err := generateStatusMessage(nodeInfo)
 		if err != nil {
 			log.Print(err.Error())
-			time.Sleep(statusPollInterval * time.Second)
 			continue // no point in processing info response
 		}
 
-		isTimeToSendStatus := (time.Now().Hour() == statusNotifyTime)
+		sendWindow := time.Now().Hour() == params.NotifyTime // 1-hour notify window
 
-		if smsEnable == "TRUE" && isTimeToSendStatus && !smsAlreadySent {
-			err := sendSMS(twilioClient, textMsg, smsTo, smsFrom)
+		// todo - check for env vars before trying to send SMS
+		if sendWindow && params.SMS.Enable && !alreadySent {
+			err := sendSMS(params.SMS, statusMsg)
 			if err != nil {
 				log.Print(err.Error())
 			} else {
-				smsAlreadySent = true
+				log.Println("\nSMS sent successfully!")
+				alreadySent = true
 			}
 		}
-
-		// if time to send status window has passed, reset the smsAlreadySent boolean
-		if !isTimeToSendStatus && smsAlreadySent {
-			smsAlreadySent = false
+		if !sendWindow {
+			alreadySent = false
 		}
-		log.Println(textMsg)
-		time.Sleep(statusPollInterval * time.Second)
+		log.Println(statusMsg)
 	}
 }
