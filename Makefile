@@ -23,14 +23,10 @@ test:
 gql:
 	go generate ./...
 
-common-build-args = --build-arg SMS_ENABLE=${SMS_ENABLE} \
-	--build-arg LN_NODE_URL=${LN_NODE_URL} \
-	--build-arg MACAROON_HEADER=${MACAROON_HEADER} \
-	--build-arg LND_TLS_CERT_PATH=${LND_TLS_CERT_PATH} \
+common-build-args = --build-arg LND_TLS_CERT_PATH=${LND_TLS_CERT_PATH} \
 	--build-arg TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID} \
 	--build-arg TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN} \
 	--build-arg TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER} \
-	--build-arg TO_PHONE_NUMBER=${TO_PHONE_NUMBER} \
     --build-arg POSTGRES_HOST=${POSTGRES_HOST} \
 	--build-arg POSTGRES_DB=${POSTGRES_DB} \
 	--build-arg POSTGRES_PORT=${POSTGRES_PORT} \
