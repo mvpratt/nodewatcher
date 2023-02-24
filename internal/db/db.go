@@ -1,211 +1,58 @@
-// Package db implements database models, insert and select functions for a postgres database using
-// the "bun" ORM (github.com/uptrace/bun)
 package db
 
 import (
 	"context"
-	"strconv"
-	"strings"
+	"database/sql"
+	"fmt"
+	"log"
 	"time"
 
-	"github.com/lightninglabs/lndclient"
+	"github.com/mvpratt/nodewatcher/internal/db/migrations"
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
+	"github.com/uptrace/bun/driver/pgdriver"
+	"github.com/uptrace/bun/extra/bundebug"
+	"github.com/uptrace/bun/migrate"
 )
 
-// InsertNode adds a lightning node to the database
-func InsertNode(node *Node) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
+// Instance is the global database instance
+var Instance *bun.DB
+
+// RunMigrations gets all *.sql files from /migrations and runs them to create tables and constraints
+func RunMigrations() error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	_, err := Instance.NewInsert().
-		Model(node).
-		On("conflict (\"pubkey\") do nothing").
-		Exec(ctx)
+	migrator := migrate.NewMigrator(Instance, migrations.Migrations)
+	migrator.Init(ctx)
 
-	return err
-}
+	if err := migrator.Lock(ctx); err != nil {
+		return err
+	}
+	defer migrator.Unlock(ctx) //nolint:errcheck
 
-// FindNodeByPubkey gets node from the db
-func FindNodeByPubkey(pubkey string) (Node, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
-	defer cancel()
-
-	var node Node
-	err := Instance.NewSelect().
-		Model(&node).
-		Where("pubkey = ?", pubkey).
-		Scan(ctx, &node)
-
-	return node, err
-}
-
-// FindAllNodes gets node from the db
-func FindAllNodes(ctx context.Context) ([]Node, error) {
-	var nodes []Node
-	err := Instance.NewSelect().
-		Model(&nodes).
-		Scan(ctx, &nodes)
-
-	return nodes, err
-}
-
-// InsertChannel adds a channel to the db
-func InsertChannel(channel lndclient.ChannelInfo, pubkey string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
-	defer cancel()
-
-	nodeFromDB, err := FindNodeByPubkey(pubkey)
+	group, err := migrator.Migrate(ctx)
 	if err != nil {
 		return err
 	}
-
-	splits := strings.Split(channel.ChannelPoint, ":")
-	txid := splits[0]
-	output, err := strconv.ParseInt(splits[1], 10, 32)
-	if err != nil {
-		return err
+	if group.IsZero() {
+		log.Print("there are no new migrations to run (database is up to date)\n")
 	}
-
-	mychan := &Channel{
-		ID:          0,
-		FundingTxid: txid,
-		OutputIndex: output,
-		NodeID:      nodeFromDB.ID,
-	}
-
-	_, err = Instance.NewInsert().
-		Model(mychan).
-		On("conflict (\"funding_txid\",\"output_index\") do nothing").
-		Exec(ctx)
-
-	return err
+	log.Printf("migrated to %s\n", group)
+	return nil
 }
 
-// FindChannelByNodeID gets channel from the db
-func FindChannelByNodeID(id int64) (Channel, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
-	defer cancel()
-
-	var c Channel
-	err := Instance.NewSelect().
-		Model(&c).
-		Where("node_id = ?", id).
-		Scan(ctx, &c)
-
-	return c, err
+// Connect connects to a Postgres database with the credentials provided
+func Connect(params *ConnectionParams) {
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", params.User, params.Password, params.Host, params.Port, params.DatabaseName)
+	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
+	Instance = bun.NewDB(sqldb, pgdialect.New())
 }
 
-// FindAllChannels gets channel from the db
-func FindAllChannels(ctx context.Context) ([]Channel, error) {
-	var channels []Channel
-	err := Instance.NewSelect().
-		Model(&channels).
-		Scan(ctx, &channels)
-
-	return channels, err
-}
-
-// FindAllMultiChannelBackups gets channel from the db
-func FindAllMultiChannelBackups(ctx context.Context) ([]MultiChannelBackup, error) {
-	var channels []MultiChannelBackup
-	err := Instance.NewSelect().
-		Model(&channels).
-		Scan(ctx, &channels)
-
-	return channels, err
-}
-
-// InsertMultiChannelBackup adds a static channel backup of all channels to the database
-func InsertMultiChannelBackup(backup string, pubkey string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
-	defer cancel()
-
-	nodeFromDB, err := FindNodeByPubkey(pubkey)
-	if err != nil {
-		return err
-	}
-
-	multiBackup := &MultiChannelBackup{
-		ID:        0,
-		Backup:    backup,
-		NodeID:    nodeFromDB.ID,
-		CreatedAt: time.Now(),
-	}
-	_, err = Instance.NewInsert().
-		Model(multiBackup).
-		Exec(ctx)
-
-	return err
-}
-
-// FindMultiChannelBackupByPubkey gets the most recent multi-channel backup from the db
-func FindMultiChannelBackupByPubkey(pubkey string) (MultiChannelBackup, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
-	defer cancel()
-
-	var mc MultiChannelBackup
-
-	nodeFromDB, err := FindNodeByPubkey(pubkey)
-	if err != nil {
-		return mc, err
-	}
-
-	err = Instance.NewSelect().
-		Model(&mc).
-		Where("node_id = ?", nodeFromDB.ID).
-		OrderExpr("created_at DESC").
-		Limit(1).
-		Scan(ctx, &mc)
-
-	return mc, err
-}
-
-// InsertUser adds a lightning node to the database
-func InsertUser(user *User) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
-	defer cancel()
-
-	_, err := Instance.NewInsert().
-		Model(user).
-		On("conflict (\"email\") do nothing").
-		Exec(ctx)
-
-	return err
-}
-
-// FindUserByEmail gets user from the db
-func FindUserByEmail(email string) (User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
-	defer cancel()
-
-	var user User
-	err := Instance.NewSelect().
-		Model(&user).
-		Where("email = ?", email).
-		Scan(ctx, &user)
-
-	return user, err
-}
-
-// FindUserByID gets user from the db
-func FindUserByID(id int64) (User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
-	defer cancel()
-
-	var user User
-	err := Instance.NewSelect().
-		Model(&user).
-		Where("id = ?", id).
-		Scan(ctx, &user)
-
-	return user, err
-}
-
-// FindAllUsers gets users from the db
-func FindAllUsers(ctx context.Context) ([]User, error) {
-	var users []User
-	err := Instance.NewSelect().
-		Model(&users).
-		Scan(ctx, &users)
-
-	return users, err
+// EnableDebugLogs logs all database queries to the console
+func EnableDebugLogs() {
+	Instance.AddQueryHook(bundebug.NewQueryHook(
+		bundebug.WithVerbose(true),
+		bundebug.FromEnv("BUNDEBUG"),
+	))
 }
