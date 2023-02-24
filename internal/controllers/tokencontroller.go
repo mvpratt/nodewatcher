@@ -14,6 +14,8 @@ type TokenRequest struct {
 }
 
 // GenerateToken returns a JWT that is good for X hours
+// borrowed from this tutorial:
+// https://codewithmukesh.com/blog/jwt-authentication-in-golang/#Setting_up_the_Database_Migrations
 func GenerateToken(context *gin.Context) {
 	var request TokenRequest
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/hex"
 	"log"
 	"time"
 
@@ -31,75 +30,51 @@ func main() {
 	db.EnableDebugLogs()
 	db.RunMigrations()
 
-	var (
-		macaroon = util.RequireEnvVar("MACAROON_HEADER")
-		lndHost  = util.RequireEnvVar("LN_NODE_URL")
-		tlsPath  = util.RequireEnvVar("LND_TLS_CERT_PATH")
-	)
-
-	lndConfig := &lndclient.LndServicesConfig{
-		LndAddress:            lndHost,
-		Network:               lndclient.NetworkMainnet,
-		CustomMacaroonHex:     macaroon,
-		TLSPath:               tlsPath,
-		Insecure:              false,
-		BlockUntilChainSynced: false,
-		BlockUntilUnlocked:    false,
+	twilioConfig := health.TwilioConfig{
+		From:             util.RequireEnvVar("TWILIO_PHONE_NUMBER"),
+		TwilioClient:     twilio.NewRestClient(),
+		TwilioAccountSID: util.RequireEnvVar("TWILIO_ACCOUNT_SID"),
+		TwilioAuthToken:  util.RequireEnvVar("TWILIO_AUTH_TOKEN"),
 	}
 
-	//sim := util.RequireEnvVar("SIM")
-	// if simulation ...
-	// lndConfig.Insecure = true
-	// lndConfig.TLSPath = ""
-	// lndConfig.Network = lndclient.NetworkRegtest
+	lndClients := make(map[string]*lndclient.LightningClient)
 
-	// connect to node via grpc
-	lndServices, err := lndclient.NewLndServices(lndConfig)
-	lndClient := lndServices.LndServices.Client
-	if err != nil {
-		log.Fatal(err.Error())
+	for {
+		nodes, _ := db.FindAllNodes(context.Background())
+
+		for _, node := range nodes {
+
+			client, err := getClient(lndClients, node)
+			if err != nil {
+				log.Printf("Error connecting to LND node %s: %s", node.Alias, err)
+				continue
+			}
+			lndClients[node.Alias] = client
+
+			err = health.Check(twilioConfig, node, client)
+			if err != nil {
+				log.Printf("Error checking health of LND node %s: %s", node.Alias, err)
+			}
+
+			err = backup.Save(node, client)
+			if err != nil {
+				log.Printf("Error saving multi-channel backup for LND node %s: %s", node.Alias, err)
+			}
+		}
+		time.Sleep(60 * time.Second)
 	}
+}
 
-	nodeInfo, err := lndClient.GetInfo(context.Background())
-	if err != nil {
-		log.Fatal(err.Error())
+func getClient(clients map[string]*lndclient.LightningClient, node db.Node) (*lndclient.LightningClient, error) {
+	client, ok := clients[node.Alias]
+
+	if !ok || client == nil {
+		newClient, err := util.GetLndClient(node)
+		if err != nil {
+			return nil, err
+		}
+		clients[node.Alias] = newClient
+		return newClient, nil
 	}
-
-	node := &db.Node{
-		ID:       0,
-		URL:      lndHost,
-		Alias:    nodeInfo.Alias,
-		Pubkey:   hex.EncodeToString(nodeInfo.IdentityPubkey[:]),
-		Macaroon: macaroon,
-	}
-
-	err = db.InsertNode(node)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	var smsParams health.SmsParams
-	smsParams.Enable = util.RequireEnvVar("SMS_ENABLE") == "TRUE"
-
-	if smsParams.Enable {
-		smsParams.To = util.RequireEnvVar("TO_PHONE_NUMBER")
-		smsParams.From = util.RequireEnvVar("TWILIO_PHONE_NUMBER")
-		smsParams.TwilioClient = twilio.NewRestClient()
-		smsParams.TwilioAccountSID = util.RequireEnvVar("TWILIO_ACCOUNT_SID")
-		smsParams.TwilioAuthToken = util.RequireEnvVar("TWILIO_AUTH_TOKEN")
-	} else {
-		log.Println("\nWARNING: Text messages disabled. " +
-			"Set environment variable SMS_ENABLE to TRUE to enable SMS status updates")
-	}
-
-	monitorParams := health.MonitorParams{
-		Interval:   60 * time.Second,
-		NotifyTime: 1, // when time = 01:00 UTC
-	}
-
-	done := make(chan bool)
-	go health.Monitor(monitorParams, lndClient)
-	go backup.SaveChannelBackups(monitorParams.Interval, node, lndClient)
-
-	<-done // Block forever
+	return client, nil
 }

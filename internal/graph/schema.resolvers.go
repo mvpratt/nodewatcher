@@ -26,6 +26,7 @@ func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) 
 		Alias:    input.Alias,
 		Pubkey:   input.Pubkey,
 		Macaroon: input.Macaroon,
+		UserID:   int64(input.UserID),
 	}
 
 	dbNode := &db.Node{
@@ -34,6 +35,7 @@ func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) 
 		Alias:    input.Alias,
 		Pubkey:   input.Pubkey,
 		Macaroon: input.Macaroon,
+		UserID:   int64(input.UserID),
 	}
 	err := db.InsertNode(dbNode)
 	if err != nil {
@@ -45,15 +47,19 @@ func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) 
 // CreateUser is the resolver for the createUser field.
 func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) (*model.User, error) {
 	user := &model.User{
-		ID:       int64(input.ID),
-		Email:    input.Email,
-		Password: input.Password,
+		ID:          int64(input.ID),
+		Email:       input.Email,
+		Password:    input.Password,
+		PhoneNumber: input.PhoneNumber,
+		SmsEnabled:  input.SmsEnabled,
 	}
 
 	dbUser := &db.User{
-		ID:       0,
-		Email:    input.Email,
-		Password: input.Password,
+		ID:          0,
+		Email:       input.Email,
+		Password:    input.Password,
+		PhoneNumber: input.PhoneNumber,
+		SmsEnabled:  input.SmsEnabled,
 	}
 	err := db.InsertUser(dbUser)
 	if err != nil {
@@ -141,13 +147,25 @@ func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
 	var g *model.User
 	for _, user := range users {
 		g = &model.User{
-			ID:       int64(user.ID),
-			Email:    user.Email,
-			Password: user.Password,
+			ID:          int64(user.ID),
+			Email:       user.Email,
+			Password:    user.Password,
+			PhoneNumber: user.PhoneNumber,
+			SmsEnabled:  user.SmsEnabled,
 		}
 		graphUsers = append(graphUsers, g)
 	}
 	return graphUsers, nil
+}
+
+// SmsNotifyTime is the resolver for the sms_notify_time field.
+func (r *userResolver) SmsNotifyTime(ctx context.Context, obj *model.User) (string, error) {
+	return obj.SmsNotifyTime.Format(time.RFC850), nil
+}
+
+// SmsLastSent is the resolver for the sms_last_sent field.
+func (r *userResolver) SmsLastSent(ctx context.Context, obj *model.User) (string, error) {
+	return obj.SmsLastSent.Format(time.RFC850), nil
 }
 
 // MultiChannelBackup returns MultiChannelBackupResolver implementation.
@@ -161,6 +179,10 @@ func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// User returns UserResolver implementation.
+func (r *Resolver) User() UserResolver { return &userResolver{r} }
+
 type multiChannelBackupResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type userResolver struct{ *Resolver }

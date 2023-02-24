@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/lightninglabs/lndclient"
+	"github.com/mvpratt/nodewatcher/internal/db"
 	twilio "github.com/twilio/twilio-go"
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )
@@ -20,10 +21,8 @@ type GithubLatestReleaseResponse struct {
 	TagName string `json:"tag_name"`
 }
 
-// SmsParams contains the parameters for sending an SMS message
-type SmsParams struct {
-	Enable           bool
-	To               string
+// TwilioConfig contains the parameters for sending an SMS message
+type TwilioConfig struct {
 	From             string
 	TwilioClient     *twilio.RestClient
 	TwilioAccountSID string
@@ -32,9 +31,16 @@ type SmsParams struct {
 
 // MonitorParams contains the parameters for monitoring an LND node
 type MonitorParams struct {
-	SMS        SmsParams
 	Interval   time.Duration
 	NotifyTime int
+}
+
+// SmsDetails contains the parameters for sending an SMS message
+type SmsDetails struct {
+	To           string
+	From         string
+	Body         string
+	TwilioClient *twilio.RestClient
 }
 
 // Get latest release tag from Github
@@ -65,13 +71,13 @@ func compareVersions(githubTag string, lndVersionString string) bool {
 }
 
 // Send a text message
-func sendSMS(sms SmsParams, msg string) error {
+func sendSMS(details SmsDetails) error {
 	params := &openapi.CreateMessageParams{}
-	params.SetTo(sms.To)
-	params.SetFrom(sms.From)
-	params.SetBody(msg)
+	params.SetTo(details.To)
+	params.SetFrom(details.From)
+	params.SetBody(details.Body)
 
-	_, err := sms.TwilioClient.Api.CreateMessage(params)
+	_, err := details.TwilioClient.Api.CreateMessage(params)
 	if err != nil {
 		return fmt.Errorf("%s", err.Error())
 	}
@@ -124,41 +130,45 @@ func getNodeInfo(client lndclient.LightningClient) (*lndclient.Info, error) {
 	return client.GetInfo(ctx)
 }
 
-// Monitor - Once a day, send a text message with lightning node status if params.SMS.Enable is true
-func Monitor(params MonitorParams, client lndclient.LightningClient) {
-	alreadySent := false
+// Check node status, send a text message if user has SMS enabled
+func Check(twilioConfig TwilioConfig, node db.Node, lndClient *lndclient.LightningClient) error {
+	// todo - sanitize inputs
+	log.Printf("\nChecking node status: %s", node.Alias)
 
-	for {
-		log.Println("\nChecking node status ...")
-		time.Sleep(params.Interval)
-
-		nodeInfo, err := getNodeInfo(client)
-		if err != nil {
-			log.Print(err.Error())
-			continue // no point in processing info response
-		}
-
-		statusMsg, err := generateStatusMessage(nodeInfo)
-		if err != nil {
-			log.Print(err.Error())
-			continue // no point in processing info response
-		}
-
-		sendWindow := time.Now().Hour() == params.NotifyTime // 1-hour notify window
-
-		// todo - check for env vars before trying to send SMS
-		if sendWindow && params.SMS.Enable && !alreadySent {
-			err := sendSMS(params.SMS, statusMsg)
-			if err != nil {
-				log.Print(err.Error())
-			} else {
-				log.Println("\nSMS sent successfully!")
-				alreadySent = true
-			}
-		}
-		if !sendWindow {
-			alreadySent = false
-		}
-		log.Println(statusMsg)
+	user, _ := db.FindUserByID(node.UserID)
+	if !user.SmsEnabled {
+		log.Println("\nWARNING: Text messages disabled for user.")
 	}
+
+	nodeInfo, err := getNodeInfo(*lndClient)
+	if err != nil {
+		return err
+	}
+
+	statusMsg, err := generateStatusMessage(nodeInfo)
+	if err != nil {
+		return err
+	}
+
+	sendWindow := time.Now().Hour() == user.SmsNotifyTime.Hour() // 1-hour notify window
+	alreadySent := time.Since(user.SmsLastSent) < time.Hour*24   // only send once per 24 hours
+
+	// todo - check for twilio env vars before trying to send SMS
+	if sendWindow && user.SmsEnabled && !alreadySent {
+		smsDetails := SmsDetails{
+			To:           user.PhoneNumber,
+			From:         twilioConfig.From,
+			Body:         statusMsg,
+			TwilioClient: twilioConfig.TwilioClient,
+		}
+		err := sendSMS(smsDetails)
+		if err != nil {
+			return err
+		} else {
+			log.Println("\nSMS sent successfully!")
+			user.SmsLastSent = time.Now()
+		}
+	}
+	log.Println(statusMsg)
+	return nil
 }

@@ -25,17 +25,23 @@ type Node struct {
 	Alias    string `bun:"alias"`
 	Pubkey   string `bun:"pubkey"`
 	Macaroon string `bun:"macaroon"`
+	UserID   int64  `bun:"user_id"`
 }
 
 // User is a
 type User struct {
 	bun.BaseModel `bun:"table:users"`
 
-	ID       int64  `bun:"id,pk,autoincrement"`
-	Email    string `bun:"email,unique"`
-	Password string `bun:"password"`
+	ID            int64     `bun:"id,pk,autoincrement"`
+	Email         string    `bun:"email,unique"`
+	Password      string    `bun:"password"`
+	PhoneNumber   string    `bun:"phone_number"`
+	SmsEnabled    bool      `bun:"sms_enabled"`
+	SmsLastSent   time.Time `bun:"sms_last_sent"`
+	SmsNotifyTime time.Time `bun:"sms_notify_time"`
 }
 
+// HashPassword hashes a password
 func (user *User) HashPassword(password string) error {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
@@ -45,6 +51,7 @@ func (user *User) HashPassword(password string) error {
 	return nil
 }
 
+// CheckPassword checks a password
 func (user *User) CheckPassword(providedPassword string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(providedPassword))
 	if err != nil {
