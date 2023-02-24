@@ -163,7 +163,7 @@ func Check(twilioConfig TwilioConfig, node db.Node, lndClient *lndclient.Lightni
 		}
 		err := sendSMS(smsDetails)
 		if err != nil {
-			log.Print(err.Error())
+			return err
 		} else {
 			log.Println("\nSMS sent successfully!")
 			user.SmsLastSent = time.Now()

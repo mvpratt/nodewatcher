@@ -46,19 +46,20 @@ func main() {
 			client, ok := lndClients[node.Alias]
 
 			if !ok || client == nil {
-				client, err := util.GetLndClient(node)
+				newClient, err := util.GetLndClient(node)
 				if err != nil {
 					log.Printf("Error connecting to LND node %s: %s", node.Alias, err)
+					continue
 				}
-				lndClients[node.Alias] = client
+				lndClients[node.Alias] = newClient
 			}
 
-			err := health.Check(twilioConfig, node, client)
+			err := health.Check(twilioConfig, node, lndClients[node.Alias])
 			if err != nil {
 				log.Printf("Error checking health of LND node %s: %s", node.Alias, err)
 			}
 
-			err = backup.Save(node, client)
+			err = backup.Save(node, lndClients[node.Alias])
 			if err != nil {
 				log.Printf("Error saving multi-channel backup for LND node %s: %s", node.Alias, err)
 			}
