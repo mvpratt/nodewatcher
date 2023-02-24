@@ -15,6 +15,7 @@ import (
 	"github.com/uptrace/bun/migrate"
 )
 
+// Instance is the global database instance
 var Instance *bun.DB
 
 // RunMigrations gets all *.sql files from /migrations and runs them to create tables and constraints

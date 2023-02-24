@@ -12,7 +12,6 @@ import (
 
 	"github.com/lightninglabs/lndclient"
 	"github.com/mvpratt/nodewatcher/internal/db"
-	"github.com/mvpratt/nodewatcher/internal/util"
 	twilio "github.com/twilio/twilio-go"
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )
@@ -36,6 +35,7 @@ type MonitorParams struct {
 	NotifyTime int
 }
 
+// SmsDetails contains the parameters for sending an SMS message
 type SmsDetails struct {
 	To           string
 	From         string
@@ -130,53 +130,46 @@ func getNodeInfo(client lndclient.LightningClient) (*lndclient.Info, error) {
 	return client.GetInfo(ctx)
 }
 
-// Monitor - Once a day, send a text message with lightning node status if user has SMS enabled
-func Monitor(params MonitorParams, twilioConfig TwilioConfig, node db.Node) {
-	lndClient := util.GetLndClient(node)
+// Check node status, send a text message if user has SMS enabled
+func Check(twilioConfig TwilioConfig, node db.Node, lndClient *lndclient.LightningClient) {
+	// todo - sanitize inputs
+	log.Printf("\nChecking node status: %s", node.Alias)
 
 	user, _ := db.FindUserByID(node.UserID)
 	if !user.SmsEnabled {
 		log.Println("\nWARNING: Text messages disabled for user.")
 	}
 
-	alreadySent := false
-	for {
-		log.Printf("\nChecking node status: %s", node.Alias)
-		time.Sleep(params.Interval)
-
-		nodeInfo, err := getNodeInfo(lndClient)
-		if err != nil {
-			log.Print(err.Error())
-			continue
-		}
-
-		statusMsg, err := generateStatusMessage(nodeInfo)
-		if err != nil {
-			log.Print(err.Error())
-			continue
-		}
-
-		sendWindow := time.Now().Hour() == params.NotifyTime // 1-hour notify window
-
-		// todo - check for twilio env vars before trying to send SMS
-		if sendWindow && user.SmsEnabled && !alreadySent {
-			smsDetails := SmsDetails{
-				To:           user.PhoneNumber,
-				From:         twilioConfig.From,
-				Body:         statusMsg,
-				TwilioClient: twilioConfig.TwilioClient,
-			}
-			err := sendSMS(smsDetails)
-			if err != nil {
-				log.Print(err.Error())
-			} else {
-				log.Println("\nSMS sent successfully!")
-				alreadySent = true
-			}
-		}
-		if !sendWindow {
-			alreadySent = false
-		}
-		log.Println(statusMsg)
+	nodeInfo, err := getNodeInfo(*lndClient)
+	if err != nil {
+		log.Print(err.Error())
+		return
 	}
+
+	statusMsg, err := generateStatusMessage(nodeInfo)
+	if err != nil {
+		log.Print(err.Error())
+		return
+	}
+
+	sendWindow := time.Now().Hour() == user.SmsNotifyTime.Hour() // 1-hour notify window
+	alreadySent := time.Since(user.SmsLastSent) < time.Hour*24   // only send once per 24 hours
+
+	// todo - check for twilio env vars before trying to send SMS
+	if sendWindow && user.SmsEnabled && !alreadySent {
+		smsDetails := SmsDetails{
+			To:           user.PhoneNumber,
+			From:         twilioConfig.From,
+			Body:         statusMsg,
+			TwilioClient: twilioConfig.TwilioClient,
+		}
+		err := sendSMS(smsDetails)
+		if err != nil {
+			log.Print(err.Error())
+		} else {
+			log.Println("\nSMS sent successfully!")
+			user.SmsLastSent = time.Now()
+		}
+	}
+	log.Println(statusMsg)
 }

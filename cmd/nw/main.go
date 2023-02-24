@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/lightninglabs/lndclient"
 	"github.com/mvpratt/nodewatcher/internal/backup"
 	"github.com/mvpratt/nodewatcher/internal/db"
 	"github.com/mvpratt/nodewatcher/internal/health"
@@ -35,20 +36,24 @@ func main() {
 		TwilioAuthToken:  util.RequireEnvVar("TWILIO_AUTH_TOKEN"),
 	}
 
-	monitorParams := health.MonitorParams{
-		Interval:   60 * time.Second,
-		NotifyTime: 1, // when time = 01:00 UTC
-	}
+	lndClients := make(map[string]*lndclient.LightningClient)
 
-	nodes, _ := db.FindAllNodes(context.Background())
+	// todo - constraint - require user fields
 
-	done := make(chan bool)
-	for i := range nodes {
-		go health.Monitor(monitorParams, twilioConfig, nodes[i])
-	}
+	for {
+		nodes, _ := db.FindAllNodes(context.Background())
 
-	for i := range nodes {
-		go backup.SaveChannelBackups(monitorParams.Interval, nodes[i])
+		for _, node := range nodes {
+			client, ok := lndClients[node.Alias]
+
+			if !ok {
+				client = util.GetLndClient(node) // handle error
+				lndClients[node.Alias] = client
+			}
+
+			health.Check(twilioConfig, node, client) // todo - handle error
+			backup.Save(node, client)                // todo - handle error
+		}
+		time.Sleep(60 * time.Second)
 	}
-	<-done // Block forever
 }

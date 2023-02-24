@@ -40,6 +40,8 @@ type User {
   password: String!
   phone_number: String!
   sms_enabled: Boolean!
+  sms_notify_time: String!
+  sms_last_sent: String!
 }
 
 input NewUser {
@@ -48,6 +50,7 @@ input NewUser {
   password: String!
   phone_number: String!
   sms_enabled: Boolean!
+  sms_notify_time: String!
 }
 
 type Query {

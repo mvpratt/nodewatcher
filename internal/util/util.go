@@ -17,7 +17,8 @@ func RequireEnvVar(varName string) string {
 	return env
 }
 
-func GetLndClient(node db.Node) lndclient.LightningClient {
+// GetLndClient returns a lndclient for a given node
+func GetLndClient(node db.Node) *lndclient.LightningClient {
 	//sim := util.RequireEnvVar("SIM")
 	// if simulation ...
 	// lndConfig.Insecure = true
@@ -41,6 +42,5 @@ func GetLndClient(node db.Node) lndclient.LightningClient {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	client := services.LndServices.Client
-	return client
+	return &services.LndServices.Client
 }

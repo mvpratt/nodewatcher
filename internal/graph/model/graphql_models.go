@@ -30,9 +30,11 @@ type MultiChannelBackup struct {
 
 // User is a nodewatcher user
 type User struct {
-	ID          int64  `json:"id"`
-	Email       string `json:"email"`
-	Password    string `json:"password"`
-	PhoneNumber string `json:"phone_number"`
-	SmsEnabled  bool   `json:"sms_enabled"`
+	ID            int64     `json:"id"`
+	Email         string    `json:"email"`
+	Password      string    `json:"password"`
+	PhoneNumber   string    `json:"phone_number"`
+	SmsEnabled    bool      `json:"sms_enabled"`
+	SmsLastSent   time.Time `json:"sms_last_sent"`
+	SmsNotifyTime time.Time `json:"sms_notify_time"`
 }

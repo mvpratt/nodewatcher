@@ -158,6 +158,16 @@ func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
 	return graphUsers, nil
 }
 
+// SmsNotifyTime is the resolver for the sms_notify_time field.
+func (r *userResolver) SmsNotifyTime(ctx context.Context, obj *model.User) (string, error) {
+	return obj.SmsNotifyTime.Format(time.RFC850), nil
+}
+
+// SmsLastSent is the resolver for the sms_last_sent field.
+func (r *userResolver) SmsLastSent(ctx context.Context, obj *model.User) (string, error) {
+	return obj.SmsLastSent.Format(time.RFC850), nil
+}
+
 // MultiChannelBackup returns MultiChannelBackupResolver implementation.
 func (r *Resolver) MultiChannelBackup() MultiChannelBackupResolver {
 	return &multiChannelBackupResolver{r}
@@ -169,6 +179,10 @@ func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// User returns UserResolver implementation.
+func (r *Resolver) User() UserResolver { return &userResolver{r} }
+
 type multiChannelBackupResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type userResolver struct{ *Resolver }

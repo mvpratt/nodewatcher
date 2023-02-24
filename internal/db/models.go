@@ -32,13 +32,16 @@ type Node struct {
 type User struct {
 	bun.BaseModel `bun:"table:users"`
 
-	ID          int64  `bun:"id,pk,autoincrement"`
-	Email       string `bun:"email,unique"`
-	Password    string `bun:"password"`
-	PhoneNumber string `bun:"phone_number"`
-	SmsEnabled  bool   `bun:"sms_enabled"`
+	ID            int64     `bun:"id,pk,autoincrement"`
+	Email         string    `bun:"email,unique"`
+	Password      string    `bun:"password"`
+	PhoneNumber   string    `bun:"phone_number"`
+	SmsEnabled    bool      `bun:"sms_enabled"`
+	SmsLastSent   time.Time `bun:"sms_last_sent"`
+	SmsNotifyTime time.Time `bun:"sms_notify_time"`
 }
 
+// HashPassword hashes a password
 func (user *User) HashPassword(password string) error {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
@@ -48,6 +51,7 @@ func (user *User) HashPassword(password string) error {
 	return nil
 }
 
+// CheckPassword checks a password
 func (user *User) CheckPassword(providedPassword string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(providedPassword))
 	if err != nil {
@@ -66,7 +70,6 @@ type Channel struct {
 	NodeID      int64  `bun:"node_id"`
 }
 
-// todo - remove channel backup - unused
 // ChannelBackup is an encrypted static channel backup of a single lightning channel
 type ChannelBackup struct {
 	bun.BaseModel `bun:"table:channel_backups"`
