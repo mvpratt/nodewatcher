@@ -21,7 +21,7 @@ func RequireEnvVar(varName string) string {
 func GetLndClient(node db.Node) (*lndclient.LightningClient, error) {
 
 	// todo - running locally
-	// TLSPath = /Users/mike/projects/bitcoin/mvpratt/nodewatcher/creds/tls.cert
+	// TLSPath = /path/to/local/dir
 
 	config := &lndclient.LndServicesConfig{
 		LndAddress:            node.URL,
