@@ -43,27 +43,38 @@ func main() {
 		nodes, _ := db.FindAllNodes(context.Background())
 
 		for _, node := range nodes {
-			client, ok := lndClients[node.Alias]
 
-			if !ok || client == nil {
-				newClient, err := util.GetLndClient(node)
-				if err != nil {
-					log.Printf("Error connecting to LND node %s: %s", node.Alias, err)
-					continue
-				}
-				lndClients[node.Alias] = newClient
+			client, err := getClient(lndClients, node)
+			if err != nil {
+				log.Printf("Error connecting to LND node %s: %s", node.Alias, err)
+				continue
 			}
+			lndClients[node.Alias] = client
 
-			err := health.Check(twilioConfig, node, lndClients[node.Alias])
+			err = health.Check(twilioConfig, node, client)
 			if err != nil {
 				log.Printf("Error checking health of LND node %s: %s", node.Alias, err)
 			}
 
-			err = backup.Save(node, lndClients[node.Alias])
+			err = backup.Save(node, client)
 			if err != nil {
 				log.Printf("Error saving multi-channel backup for LND node %s: %s", node.Alias, err)
 			}
 		}
 		time.Sleep(60 * time.Second)
 	}
+}
+
+func getClient(clients map[string]*lndclient.LightningClient, node db.Node) (*lndclient.LightningClient, error) {
+	client, ok := clients[node.Alias]
+
+	if !ok || client == nil {
+		newClient, err := util.GetLndClient(node)
+		if err != nil {
+			return nil, err
+		}
+		clients[node.Alias] = newClient
+		return newClient, nil
+	}
+	return client, nil
 }
