@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/lightninglabs/lndclient"
@@ -45,19 +44,20 @@ func getMultiChannelBackups(node db.Node, client lndclient.LightningClient) erro
 }
 
 // Save multi-channel backup to db
-func Save(node db.Node, lndClient *lndclient.LightningClient) {
+func Save(node db.Node, lndClient *lndclient.LightningClient) error {
 	// todo - sanitize inputs
 	fmt.Printf("\nSaving multi-channel backup: %s", node.Alias)
 
 	err := getChannels(node, *lndClient)
 	if err != nil {
-		log.Print(err.Error())
+		return err
 	}
 
 	err = getMultiChannelBackups(node, *lndClient)
 	if err != nil {
-		log.Print(err.Error())
+		return err
 	}
+	return nil
 }
 
 // WIP

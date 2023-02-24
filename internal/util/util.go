@@ -18,14 +18,9 @@ func RequireEnvVar(varName string) string {
 }
 
 // GetLndClient returns a lndclient for a given node
-func GetLndClient(node db.Node) *lndclient.LightningClient {
-	//sim := util.RequireEnvVar("SIM")
-	// if simulation ...
-	// lndConfig.Insecure = true
-	// lndConfig.TLSPath = ""
-	// lndConfig.Network = lndclient.NetworkRegtest
+func GetLndClient(node db.Node) (*lndclient.LightningClient, error) {
 
-	tlsPath := RequireEnvVar("LND_TLS_CERT_PATH") // todo
+	tlsPath := RequireEnvVar("LND_TLS_CERT_PATH") // todo - handle certs for each node
 
 	config := &lndclient.LndServicesConfig{
 		LndAddress:            node.URL,
@@ -40,7 +35,7 @@ func GetLndClient(node db.Node) *lndclient.LightningClient {
 	// connect to node via grpc
 	services, err := lndclient.NewLndServices(config)
 	if err != nil {
-		log.Fatal(err.Error())
+		return nil, err
 	}
-	return &services.LndServices.Client
+	return &services.LndServices.Client, nil
 }

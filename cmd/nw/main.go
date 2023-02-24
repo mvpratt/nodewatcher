@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/lightninglabs/lndclient"
@@ -38,21 +39,29 @@ func main() {
 
 	lndClients := make(map[string]*lndclient.LightningClient)
 
-	// todo - constraint - require user fields
-
 	for {
 		nodes, _ := db.FindAllNodes(context.Background())
 
 		for _, node := range nodes {
 			client, ok := lndClients[node.Alias]
 
-			if !ok {
-				client = util.GetLndClient(node) // handle error
+			if !ok || client == nil {
+				client, err := util.GetLndClient(node)
+				if err != nil {
+					log.Printf("Error connecting to LND node %s: %s", node.Alias, err)
+				}
 				lndClients[node.Alias] = client
 			}
 
-			health.Check(twilioConfig, node, client) // todo - handle error
-			backup.Save(node, client)                // todo - handle error
+			err := health.Check(twilioConfig, node, client)
+			if err != nil {
+				log.Printf("Error checking health of LND node %s: %s", node.Alias, err)
+			}
+
+			err = backup.Save(node, client)
+			if err != nil {
+				log.Printf("Error saving multi-channel backup for LND node %s: %s", node.Alias, err)
+			}
 		}
 		time.Sleep(60 * time.Second)
 	}

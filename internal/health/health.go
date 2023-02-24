@@ -131,7 +131,7 @@ func getNodeInfo(client lndclient.LightningClient) (*lndclient.Info, error) {
 }
 
 // Check node status, send a text message if user has SMS enabled
-func Check(twilioConfig TwilioConfig, node db.Node, lndClient *lndclient.LightningClient) {
+func Check(twilioConfig TwilioConfig, node db.Node, lndClient *lndclient.LightningClient) error {
 	// todo - sanitize inputs
 	log.Printf("\nChecking node status: %s", node.Alias)
 
@@ -142,14 +142,12 @@ func Check(twilioConfig TwilioConfig, node db.Node, lndClient *lndclient.Lightni
 
 	nodeInfo, err := getNodeInfo(*lndClient)
 	if err != nil {
-		log.Print(err.Error())
-		return
+		return err
 	}
 
 	statusMsg, err := generateStatusMessage(nodeInfo)
 	if err != nil {
-		log.Print(err.Error())
-		return
+		return err
 	}
 
 	sendWindow := time.Now().Hour() == user.SmsNotifyTime.Hour() // 1-hour notify window
@@ -172,4 +170,5 @@ func Check(twilioConfig TwilioConfig, node db.Node, lndClient *lndclient.Lightni
 		}
 	}
 	log.Println(statusMsg)
+	return nil
 }
