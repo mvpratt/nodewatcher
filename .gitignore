@@ -1,5 +1,5 @@
 cmd/nw/nw
-cmd/nwapi/nwapi
+cmd/graphql/graphql
 cmd/rest-api/rest-api
 env*
 tls.cert
