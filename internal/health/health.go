@@ -132,7 +132,6 @@ func getNodeInfo(client lndclient.LightningClient) (*lndclient.Info, error) {
 
 // Check node status, send a text message if user has SMS enabled
 func Check(twilioConfig TwilioConfig, node db.Node, lndClient *lndclient.LightningClient) error {
-	// todo - sanitize inputs
 	log.Printf("\nChecking node status: %s", node.Alias)
 
 	user, _ := db.FindUserByID(node.UserID)

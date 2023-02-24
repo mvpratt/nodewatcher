@@ -8,7 +8,7 @@ lint:
 .PHONY:build
 build: lint
 	cd cmd/nw && go build
-	cd cmd/nwapi && go build -o nwapi
+	cd cmd/graphql && go build -o graphql
 	cd cmd/rest-api && go build
 
 .PHONY:run
@@ -23,8 +23,7 @@ test:
 gql:
 	go generate ./...
 
-common-build-args = --build-arg LND_TLS_CERT_PATH=${LND_TLS_CERT_PATH} \
-	--build-arg TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID} \
+common-build-args = --build-arg TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID} \
 	--build-arg TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN} \
 	--build-arg TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER} \
     --build-arg POSTGRES_HOST=${POSTGRES_HOST} \
@@ -39,7 +38,7 @@ docker-build: lint
 
 .PHONY:docker-build-graphql
 docker-build-graphql: lint
-	docker build . -t nodewatcher-graphql $(common-build-args) --build-arg CMD=/bin/nwapi
+	docker build . -t nodewatcher-graphql $(common-build-args) --build-arg CMD=/bin/graphql
 
 .PHONY:docker-build-aws
 docker-build-aws: lint
@@ -47,7 +46,7 @@ docker-build-aws: lint
 
 .PHONY:docker-build-aws-graphql
 docker-build-aws-graphql: lint
-	source env-aws.sh && docker build . -t nodewatcher-graphql $(common-build-args) --build-arg CMD=/bin/nwapi --platform=linux/amd64
+	source env-aws.sh && docker build . -t nodewatcher-graphql $(common-build-args) --build-arg CMD=/bin/graphql --platform=linux/amd64
 
 .PHONY:docker-run
 docker-run:

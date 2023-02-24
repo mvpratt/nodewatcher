@@ -1,5 +1,4 @@
 #!/bin/sh
-export LND_TLS_CERT_PATH=/path/to/tls.cert
 
 # sms notifications
 export TWILIO_ACCOUNT_SID=ABCD
