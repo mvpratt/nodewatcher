@@ -71,6 +71,7 @@ type ComplexityRoot struct {
 		ID       func(childComplexity int) int
 		Macaroon func(childComplexity int) int
 		Pubkey   func(childComplexity int) int
+		TLSCert  func(childComplexity int) int
 		URL      func(childComplexity int) int
 		UserID   func(childComplexity int) int
 	}
@@ -233,6 +234,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Node.Pubkey(childComplexity), true
+
+	case "Node.tls_cert":
+		if e.complexity.Node.TLSCert == nil {
+			break
+		}
+
+		return e.complexity.Node.TLSCert(childComplexity), true
 
 	case "Node.url":
 		if e.complexity.Node.URL == nil {
@@ -897,6 +905,8 @@ func (ec *executionContext) fieldContext_Mutation_createNode(ctx context.Context
 				return ec.fieldContext_Node_pubkey(ctx, field)
 			case "macaroon":
 				return ec.fieldContext_Node_macaroon(ctx, field)
+			case "tls_cert":
+				return ec.fieldContext_Node_tls_cert(ctx, field)
 			case "user_id":
 				return ec.fieldContext_Node_user_id(ctx, field)
 			}
@@ -1207,6 +1217,50 @@ func (ec *executionContext) fieldContext_Node_macaroon(ctx context.Context, fiel
 	return fc, nil
 }
 
+func (ec *executionContext) _Node_tls_cert(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Node_tls_cert(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TLSCert, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Node_tls_cert(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Node",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Node_user_id(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Node_user_id(ctx, field)
 	if err != nil {
@@ -1299,6 +1353,8 @@ func (ec *executionContext) fieldContext_Query_nodes(ctx context.Context, field 
 				return ec.fieldContext_Node_pubkey(ctx, field)
 			case "macaroon":
 				return ec.fieldContext_Node_macaroon(ctx, field)
+			case "tls_cert":
+				return ec.fieldContext_Node_tls_cert(ctx, field)
 			case "user_id":
 				return ec.fieldContext_Node_user_id(ctx, field)
 			}
@@ -3688,7 +3744,7 @@ func (ec *executionContext) unmarshalInputNewNode(ctx context.Context, obj inter
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "url", "alias", "pubkey", "macaroon", "user_id"}
+	fieldsInOrder := [...]string{"id", "url", "alias", "pubkey", "macaroon", "tls_cert", "user_id"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -3735,6 +3791,14 @@ func (ec *executionContext) unmarshalInputNewNode(ctx context.Context, obj inter
 			if err != nil {
 				return it, err
 			}
+		case "tls_cert":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tls_cert"))
+			it.TLSCert, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		case "user_id":
 			var err error
 
@@ -3756,7 +3820,7 @@ func (ec *executionContext) unmarshalInputNewUser(ctx context.Context, obj inter
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "email", "password", "phone_number", "sms_enabled", "sms_notify_time"}
+	fieldsInOrder := [...]string{"id", "email", "password", "phone_number", "sms_enabled", "sms_last_sent", "sms_notify_time"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -3800,6 +3864,14 @@ func (ec *executionContext) unmarshalInputNewUser(ctx context.Context, obj inter
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sms_enabled"))
 			it.SmsEnabled, err = ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "sms_last_sent":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sms_last_sent"))
+			it.SmsLastSent, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4015,6 +4087,13 @@ func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj
 		case "macaroon":
 
 			out.Values[i] = ec._Node_macaroon(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "tls_cert":
+
+			out.Values[i] = ec._Node_tls_cert(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
 				invalids++

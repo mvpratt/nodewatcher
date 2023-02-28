@@ -8,6 +8,7 @@ type Node {
   alias:    String!
   pubkey:   String!
   macaroon: String!
+  tls_cert: String!
   user_id:  Int!
 }
 
@@ -31,6 +32,7 @@ input NewNode {
   alias: String!
   pubkey: String!
   macaroon: String!
+  tls_cert: String!
   user_id: Int!
 }
 
@@ -50,6 +52,7 @@ input NewUser {
   password: String!
   phone_number: String!
   sms_enabled: Boolean!
+  sms_last_sent: String!
   sms_notify_time: String!
 }
 

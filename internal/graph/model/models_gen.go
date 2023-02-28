@@ -8,6 +8,7 @@ type NewNode struct {
 	Alias    string `json:"alias"`
 	Pubkey   string `json:"pubkey"`
 	Macaroon string `json:"macaroon"`
+	TLSCert  string `json:"tls_cert"`
 	UserID   int    `json:"user_id"`
 }
 
@@ -17,5 +18,6 @@ type NewUser struct {
 	Password      string `json:"password"`
 	PhoneNumber   string `json:"phone_number"`
 	SmsEnabled    bool   `json:"sms_enabled"`
+	SmsLastSent   string `json:"sms_last_sent"`
 	SmsNotifyTime string `json:"sms_notify_time"`
 }
