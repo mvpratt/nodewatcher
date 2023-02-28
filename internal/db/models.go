@@ -25,6 +25,7 @@ type Node struct {
 	Alias    string `bun:"alias"`
 	Pubkey   string `bun:"pubkey"`
 	Macaroon string `bun:"macaroon"`
+	TLSCert  string `bun:"tls_cert"`
 	UserID   int64  `bun:"user_id"`
 }
 

@@ -9,6 +9,7 @@ type Node struct {
 	Alias    string `json:"alias"`
 	Pubkey   string `json:"pubkey"`
 	Macaroon string `json:"macaroon"`
+	TLSCert  string `json:"tls_cert"`
 	UserID   int64  `json:"user_id"`
 }
 

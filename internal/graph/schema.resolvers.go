@@ -26,6 +26,7 @@ func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) 
 		Alias:    input.Alias,
 		Pubkey:   input.Pubkey,
 		Macaroon: input.Macaroon,
+		TLSCert:  input.TLSCert,
 		UserID:   int64(input.UserID),
 	}
 
@@ -35,6 +36,7 @@ func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) 
 		Alias:    input.Alias,
 		Pubkey:   input.Pubkey,
 		Macaroon: input.Macaroon,
+		TLSCert:  input.TLSCert,
 		UserID:   int64(input.UserID),
 	}
 	err := db.InsertNode(dbNode)

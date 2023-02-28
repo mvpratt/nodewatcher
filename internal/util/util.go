@@ -20,15 +20,12 @@ func RequireEnvVar(varName string) string {
 // GetLndClient returns a lndclient for a given node
 func GetLndClient(node db.Node) (*lndclient.LightningClient, error) {
 
-	// todo - running locally
-	// TLSPath = /path/to/local/dir
-
 	config := &lndclient.LndServicesConfig{
 		LndAddress:            node.URL,
 		Network:               lndclient.NetworkMainnet,
 		CustomMacaroonHex:     node.Macaroon,
-		TLSPath:               "/home/nodewatcher/creds/tls.cert",
-		Insecure:              false,
+		TLSData:               node.TLSCert,
+		Insecure:              true,
 		BlockUntilChainSynced: false,
 		BlockUntilUnlocked:    false,
 	}
