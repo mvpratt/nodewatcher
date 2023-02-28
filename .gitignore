@@ -4,5 +4,3 @@ cmd/rest-api/rest-api
 env*
 tls.cert
 draft
-generated.go
-models_gen.go
