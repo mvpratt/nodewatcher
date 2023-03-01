@@ -11,6 +11,3 @@ export POSTGRES_DB=postgres
 export POSTGRES_PORT=5432
 export POSTGRES_USER=nodewatcher
 export POSTGRES_PASSWORD=password
-
-# aws
-export DOCKER_REPO=11111111.dkr.ecr.us-east-1.amazonaws.com/nodewatcher

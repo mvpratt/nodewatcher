@@ -52,9 +52,3 @@ SMS sent successfully!
 Good news, lightning node "abcxyz" is fully synced!
 Last block received 15m18.211865s minutes ago
 ```
-
-## Build docker image and deploy to AWS
-
-```bash
-make deploy
-```
