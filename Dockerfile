@@ -48,9 +48,6 @@ ENV POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 RUN mkdir /home/nodewatcher
 WORKDIR /home/nodewatcher
 
-# get tls cert for the lightning node
-COPY --from=builder /home/nodewatcher/creds ./creds
-
 COPY --from=builder /home/nodewatcher/cmd/nw/nw /bin/
 COPY --from=builder /home/nodewatcher/cmd/graphql/graphql /bin/
 COPY --from=builder /home/nodewatcher/cmd/rest-api/rest-api /bin/
