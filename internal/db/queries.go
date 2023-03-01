@@ -209,3 +209,17 @@ func FindAllUsers(ctx context.Context) ([]User, error) {
 
 	return users, err
 }
+
+// UpdateUserLastSent updates user in the db
+func UpdateUserLastSent(user User) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // todo
+	defer cancel()
+
+	_, err := Instance.NewInsert().
+		Model(&user).
+		On("CONFLICT (id) DO UPDATE").
+		Set("sms_last_sent = EXCLUDED.sms_last_sent").
+		Exec(ctx)
+
+	return err
+}

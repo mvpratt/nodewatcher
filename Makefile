@@ -40,14 +40,6 @@ docker-build: lint
 docker-build-graphql: lint
 	docker build . -t nodewatcher-graphql $(common-build-args) --build-arg CMD=/bin/graphql
 
-.PHONY:docker-build-aws
-docker-build-aws: lint
-	source env-aws.sh && docker build . -t nodewatcher $(common-build-args) --build-arg CMD=/bin/nw --platform=linux/amd64
-
-.PHONY:docker-build-aws-graphql
-docker-build-aws-graphql: lint
-	source env-aws.sh && docker build . -t nodewatcher-graphql $(common-build-args) --build-arg CMD=/bin/graphql --platform=linux/amd64
-
 .PHONY:docker-run
 docker-run:
 	docker run --rm -it nodewatcher bash
@@ -55,13 +47,3 @@ docker-run:
 .PHONE:docker-exec
 docker-exec:
 	docker exec -it nodewatcher bash
-
-.PHONY:deploy
-deploy:
-	docker tag nodewatcher:latest ${DOCKER_REPO}:latest
-	docker push ${DOCKER_REPO}:latest
-
-.PHONY:deploy-graphql
-deploy-graphql:
-	docker tag nodewatcher-graphql:latest ${DOCKER_REPO}-graphql:latest
-	docker push ${DOCKER_REPO}-graphql:latest
