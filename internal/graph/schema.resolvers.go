@@ -48,22 +48,37 @@ func (r *mutationResolver) CreateNode(ctx context.Context, input model.NewNode) 
 
 // CreateUser is the resolver for the createUser field.
 func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) (*model.User, error) {
+	lastSent, err := time.Parse("2021-01-01 01:00:00", input.SmsLastSent)
+	if err != nil {
+		log.Print(err.Error())
+	}
+
+	notifyTime, err := time.Parse("2021-01-01 01:00:00", input.SmsNotifyTime)
+	if err != nil {
+		log.Print(err.Error())
+	}
+
 	user := &model.User{
-		ID:          int64(input.ID),
-		Email:       input.Email,
-		Password:    input.Password,
-		PhoneNumber: input.PhoneNumber,
-		SmsEnabled:  input.SmsEnabled,
+		ID:            int64(input.ID),
+		Email:         input.Email,
+		Password:      input.Password,
+		PhoneNumber:   input.PhoneNumber,
+		SmsEnabled:    input.SmsEnabled,
+		SmsLastSent:   lastSent,
+		SmsNotifyTime: notifyTime, // todo - notify hour (int)
 	}
 
 	dbUser := &db.User{
-		ID:          0,
-		Email:       input.Email,
-		Password:    input.Password,
-		PhoneNumber: input.PhoneNumber,
-		SmsEnabled:  input.SmsEnabled,
+		ID:            0,
+		Email:         input.Email,
+		Password:      input.Password,
+		PhoneNumber:   input.PhoneNumber,
+		SmsEnabled:    input.SmsEnabled,
+		SmsLastSent:   lastSent,
+		SmsNotifyTime: notifyTime,
 	}
-	err := db.InsertUser(dbUser)
+
+	err = db.InsertUser(dbUser)
 	if err != nil {
 		log.Print(err.Error())
 	}
@@ -87,6 +102,8 @@ func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
 			Alias:    node.Alias,
 			Pubkey:   node.Pubkey,
 			Macaroon: node.Macaroon,
+			TLSCert:  node.TLSCert,
+			UserID:   int64(node.UserID),
 		}
 		graphNodes = append(graphNodes, g)
 	}
@@ -149,11 +166,13 @@ func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
 	var g *model.User
 	for _, user := range users {
 		g = &model.User{
-			ID:          int64(user.ID),
-			Email:       user.Email,
-			Password:    user.Password,
-			PhoneNumber: user.PhoneNumber,
-			SmsEnabled:  user.SmsEnabled,
+			ID:            int64(user.ID),
+			Email:         user.Email,
+			Password:      user.Password,
+			PhoneNumber:   user.PhoneNumber,
+			SmsEnabled:    user.SmsEnabled,
+			SmsLastSent:   user.SmsLastSent,
+			SmsNotifyTime: user.SmsNotifyTime,
 		}
 		graphUsers = append(graphUsers, g)
 	}
