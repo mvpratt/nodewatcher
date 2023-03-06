@@ -149,8 +149,8 @@ func Check(twilioConfig TwilioConfig, node db.Node, lndClient *lndclient.Lightni
 		return err
 	}
 
-	sendWindow := time.Now().Hour() == user.SmsNotifyTime.Hour() // 1-hour notify window
-	alreadySent := time.Since(user.SmsLastSent) < time.Hour*24   // only send once per 24 hours
+	sendWindow := time.Now().UTC().Hour() == user.SmsNotifyTime.Hour() // 1-hour notify window
+	alreadySent := time.Since(user.SmsLastSent) < time.Hour*24         // only send once per 24 hours
 
 	// todo - check for twilio env vars before trying to send SMS
 	if sendWindow && user.SmsEnabled && !alreadySent {
@@ -165,7 +165,7 @@ func Check(twilioConfig TwilioConfig, node db.Node, lndClient *lndclient.Lightni
 			return err
 		}
 		log.Println("\nSMS sent successfully!")
-		user.SmsLastSent = time.Now()
+		user.SmsLastSent = time.Now().UTC()
 		db.UpdateUserLastSent(user)
 	}
 	log.Println(statusMsg)
