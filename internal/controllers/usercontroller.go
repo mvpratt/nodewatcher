@@ -7,6 +7,7 @@ import (
 	"github.com/mvpratt/nodewatcher/internal/db"
 )
 
+// RegisterUser adds a user to the database.
 func RegisterUser(context *gin.Context) {
 	var user db.User
 	if err := context.ShouldBindJSON(&user); err != nil {

@@ -5,6 +5,7 @@ import (
 	"github.com/mvpratt/nodewatcher/internal/auth"
 )
 
+// Auth is a middleware that checks for a valid JWT in the Authorization header
 func Auth() gin.HandlerFunc {
 	return func(context *gin.Context) {
 		tokenString := context.GetHeader("Authorization")
