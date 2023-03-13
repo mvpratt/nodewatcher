@@ -1,7 +1,7 @@
 
 # Nodewatcher
 
-This program monitors the status of a Lightning Node and sends an alert if an issue is detected.
+This program monitors the status of a Lightning Node and sends an alert if an issue is detected. and makes backups. graphql interface for inspection
 
 ### Features
 Health Monitor
@@ -22,22 +22,27 @@ If lightning node is offline, channel parter could force close channels and stea
 
 Twilio account
 
-## Environment variables
+## Build and Run locally
 
-Set your own using the example here:
+Set environment variables
 
 ```bash
-cp env-sample.sh env.sh
+cp env-example.sh env.sh
 (make applicable changes)
 source env.sh
 ```
 
-MACAROON_HEADER should be readonly.macaroon from
-/lnd/data/chain/bitcoin/regtest/readonly.macaroon
+Seed the database by adding your node connection details here:
 
-## Build and Run locally
+`/internal/db/migrations/20230228010000_seed_nodes.up.sql`
+
+Macaroon should be `readonly.macaroon` from
+`/lnd/data/chain/bitcoin/regtest/readonly.macaroon`
+
+Buld and run
 
 ```bash
+docker compose up postgres
 make build
 make run
 ```
