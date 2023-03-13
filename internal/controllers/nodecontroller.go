@@ -7,10 +7,12 @@ import (
 	"github.com/mvpratt/nodewatcher/internal/db"
 )
 
+// NodeRequest is the request body for the GetNodes endpoint
 type NodeRequest struct {
 	Email string `json:"email"`
 }
 
+// MultiChannelBackupRequest is the request body for the GetMultiChannelBackup endpoint
 type MultiChannelBackupRequest struct {
 	Email string `json:"email"`
 }

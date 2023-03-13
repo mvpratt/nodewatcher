@@ -8,6 +8,7 @@ import (
 	"github.com/mvpratt/nodewatcher/internal/db"
 )
 
+// TokenRequest is the request body for the GenerateToken endpoint
 type TokenRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
