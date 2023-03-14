@@ -28,12 +28,6 @@ source env.sh
 /internal/db/migrations/20230228010000_seed_nodes.up.sql
 ```
 
-Macaroon should be `readonly.macaroon` from the following directory on your lighning node.
-
-```
-/lnd/data/chain/bitcoin/mainnet/readonly.macaroon
-```
-
 3. Buld and run
 
 ```bash
