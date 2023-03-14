@@ -46,7 +46,7 @@ func RunMigrations() error {
 // Connect connects to a Postgres database with the credentials provided
 func Connect(params *ConnectionParams) {
 
-	env := os.Getenv("ENVIRONMENT")
+	env := os.Getenv("NODEWATCHER_ENV")
 	var sslmode string
 
 	if env == "production" {
