@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/mvpratt/nodewatcher/internal/db/migrations"
@@ -44,7 +45,24 @@ func RunMigrations() error {
 
 // Connect connects to a Postgres database with the credentials provided
 func Connect(params *ConnectionParams) {
-	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable", params.User, params.Password, params.Host, params.Port, params.DatabaseName)
+
+	env := os.Getenv("ENVIRONMENT")
+	var sslmode string
+
+	if env == "production" {
+		sslmode = "require"
+	} else {
+		sslmode = "disable"
+	}
+
+	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s",
+		params.User,
+		params.Password,
+		params.Host,
+		params.Port,
+		params.DatabaseName,
+		sslmode,
+	)
 	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
 	Instance = bun.NewDB(sqldb, pgdialect.New())
 }

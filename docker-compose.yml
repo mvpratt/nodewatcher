@@ -20,38 +20,3 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  Alice:
-    container_name: Alice
-    image: wt:latest
-    networks:
-      - lnnet
-    expose:
-      - "9735"
-    ports:
-      - "10010:10009"
-    restart: always
-
-  Bob:
-    container_name: Bob
-    image: wt:latest
-    networks:
-      - lnnet
-    expose:
-      - "9735"
-    ports:
-      - "10011:10009"
-    restart: always
-
-  bitcoind:
-    container_name: bitcoind
-    build:
-        context: bitcoind
-    image: lnbook/bitcoind:latest
-    networks:
-      - lnnet
-    expose:
-      - "18443"
-      - "12005"
-      - "12006"
-    restart: always

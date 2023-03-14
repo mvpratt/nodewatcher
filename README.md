@@ -1,18 +1,7 @@
 
 # Nodewatcher
 
-This program monitors the status of a Lightning Node and sends an alert if an issue is detected. and makes backups. graphql interface for inspection
-
-### Features
-Health Monitor
-- Sends an SMS alert if node is offline
-
-Static Channel Backups
-- Backs up channel state to a postgres database
-
-### Future work
-- Restore backups
-- Telegram, Slack, Discord integration
+This program monitors the status of a Lightning Node and sends an alert if the node is unsynced or another issue is detected. It also and makes static channel backups.
 
 ## Rationale
 
@@ -20,11 +9,11 @@ If lightning node is offline, channel parter could force close channels and stea
 
 ## Requirements
 
-Twilio account
+- Twilio account
 
 ## Build and Run locally
 
-Set environment variables
+1. Set environment variables
 
 ```bash
 cp env-example.sh env.sh
@@ -32,14 +21,14 @@ cp env-example.sh env.sh
 source env.sh
 ```
 
-Seed the database by adding your node connection details here:
+2. Seed the database by adding your node and user details here:
 
-`/internal/db/migrations/20230228010000_seed_nodes.up.sql`
+```
+/internal/db/migrations/20230228010000_seed_users.up.sql
+/internal/db/migrations/20230228010000_seed_nodes.up.sql
+```
 
-Macaroon should be `readonly.macaroon` from
-`/lnd/data/chain/bitcoin/regtest/readonly.macaroon`
-
-Buld and run
+3. Buld and run
 
 ```bash
 docker compose up postgres

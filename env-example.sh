@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# set to "development" or "production"
+export NODEWATCHER_ENV=development
+
 # sms notifications
 export TWILIO_ACCOUNT_SID=ABCD
 export TWILIO_AUTH_TOKEN=BEEF42
